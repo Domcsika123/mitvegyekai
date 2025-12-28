@@ -16,6 +16,13 @@ function toNumberOrNull(value: any): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
+function normalizeGender(g: any): "male" | "female" | "other" | "unknown" {
+  const v = (typeof g === "string" ? g.trim().toLowerCase() : "");
+  if (v === "male" || v === "female" || v === "other" || v === "unknown") return v;
+  return "unknown";
+}
+
+
 // Elfogadjuk mindkét header nevet (régi + widget)
 function getApiKeyFromReq(req: any): string {
   const h1 = req.headers["x-api-key"];
@@ -108,7 +115,7 @@ router.post("/recommend", async (req, res) => {
 
     const user: UserContext = {
       age: age ?? undefined,
-      gender: (body.gender as string) || "unknown",
+      gender: normalizeGender(body.gender),
       budget_min: budgetMin ?? undefined,
       budget_max: budgetMax ?? undefined,
       relationship: (body.relationship as string) || undefined,
