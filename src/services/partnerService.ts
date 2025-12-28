@@ -13,7 +13,8 @@ export interface Partner {
   blocked?: boolean; // partner blokkolt-e
 }
 
-const DATA_DIR = path.join(__dirname, "..", "..", "data");
+// ✅ CSAK EZ VÁLTOZIK: DATA_DIR env támogatás (Render persistent diskhez)
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "..", "..", "data");
 const PARTNERS_FILE = path.join(DATA_DIR, "partners.json");
 
 let partners: Partner[] = [];
@@ -211,5 +212,3 @@ export function deletePartner(siteKey: string): boolean {
 
   return true;
 }
-
-

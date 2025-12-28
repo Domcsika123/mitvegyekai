@@ -1,5 +1,7 @@
 // src/services/statsService.ts
 
+import fs from "fs";
+import path from "path";
 import { UserContext } from "../models/UserContext";
 
 export type DailyCount = {
@@ -25,9 +27,19 @@ export type SiteStats = {
   relationshipCount: { [rel: string]: number };
 };
 
+// ✅ CSAK DISKHEZ: DATA_DIR env + stats.json fájl
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "..", "..", "data");
+const STATS_FILE = path.join(DATA_DIR, "stats.json");
+
 const statsMap: { [siteKey: string]: SiteStats } = {};
 
 const MAX_DAYS = 30;
+
+function ensureDataDir() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
 
 function createEmptyBuckets(): { [bucket in PriceBucketKey]: number } {
   return {
@@ -36,6 +48,55 @@ function createEmptyBuckets(): { [bucket in PriceBucketKey]: number } {
     "10001-20000": 0,
     "20001+": 0,
   };
+}
+
+function loadStatsFromDisk() {
+  ensureDataDir();
+
+  if (!fs.existsSync(STATS_FILE)) return;
+
+  try {
+    const raw = fs.readFileSync(STATS_FILE, "utf8");
+    const data = JSON.parse(raw);
+
+    if (!Array.isArray(data)) {
+      console.warn("[statsService] stats.json nem tömb, üres statokat használunk.");
+      return;
+    }
+
+    for (const s of data) {
+      const siteKey = String(s?.siteKey ?? "").trim();
+      if (!siteKey) continue;
+
+      statsMap[siteKey] = {
+        siteKey,
+        totalRequests: Number(s?.totalRequests) || 0,
+        lastRequestAt: s?.lastRequestAt ? String(s.lastRequestAt) : undefined,
+
+        dailyCounts: Array.isArray(s?.dailyCounts) ? s.dailyCounts : [],
+        interestsCount: s?.interestsCount && typeof s.interestsCount === "object" ? s.interestsCount : {},
+        priceBuckets: s?.priceBuckets && typeof s.priceBuckets === "object" ? s.priceBuckets : createEmptyBuckets(),
+
+        freeTextCount: s?.freeTextCount && typeof s.freeTextCount === "object" ? s.freeTextCount : {},
+        genderCount: s?.genderCount && typeof s.genderCount === "object" ? s.genderCount : {},
+        relationshipCount:
+          s?.relationshipCount && typeof s.relationshipCount === "object" ? s.relationshipCount : {},
+      };
+    }
+
+    console.log(`[statsService] Statok betöltve: ${Object.keys(statsMap).length} siteKey`);
+  } catch (err) {
+    console.error("[statsService] Hiba a stats.json beolvasása közben:", err);
+  }
+}
+
+function saveStatsToDisk() {
+  ensureDataDir();
+  try {
+    fs.writeFileSync(STATS_FILE, JSON.stringify(Object.values(statsMap), null, 2), "utf8");
+  } catch (err) {
+    console.error("[statsService] Hiba a stats.json írása közben:", err);
+  }
 }
 
 function ensureStats(siteKey: string): SiteStats {
@@ -58,7 +119,7 @@ function ensureStats(siteKey: string): SiteStats {
 }
 
 function getPriceBucket(min?: number, max?: number): PriceBucketKey {
-  const value = (max ?? min ?? 0);
+  const value = max ?? min ?? 0;
   if (value <= 5000) return "0-5000";
   if (value <= 10000) return "5001-10000";
   if (value <= 20000) return "10001-20000";
@@ -84,10 +145,14 @@ function inc(map: { [k: string]: number }, rawKey: any): void {
 function normalizeQuery(q: any): string {
   let s = String(q ?? "").trim();
   if (!s) return "";
-  // túl hosszú bejegyzések vágása, hogy ne csessze szét a UI-t
   if (s.length > 120) s = s.slice(0, 120) + "…";
   return s;
 }
+
+// ✅ induláskor betöltjük, ha van
+(function init() {
+  loadStatsFromDisk();
+})();
 
 /**
  * Ezt hívjuk meg minden sikeres /api/recommend hívásnál.
@@ -116,28 +181,31 @@ export function recordRecommendation(siteKey: string, user?: UserContext): void 
     .sort((a, b) => a.date.localeCompare(b.date));
 
   // Ha nincs extra user adatom, itt megállhatunk
-  if (!user) return;
+  if (user) {
+    // Budget kategóriák (budget_max / budget_min alapján)
+    const bucket = getPriceBucket(user.budget_min, user.budget_max);
+    stats.priceBuckets[bucket] = (stats.priceBuckets[bucket] || 0) + 1;
 
-  // Budget kategóriák (budget_max / budget_min alapján)
-  const bucket = getPriceBucket(user.budget_min, user.budget_max);
-  stats.priceBuckets[bucket] = (stats.priceBuckets[bucket] || 0) + 1;
-
-  // Érdeklődési körök
-  if (Array.isArray(user.interests)) {
-    for (const raw of user.interests) {
-      inc(stats.interestsCount, raw);
+    // Érdeklődési körök
+    if (Array.isArray(user.interests)) {
+      for (const raw of user.interests) {
+        inc(stats.interestsCount, raw);
+      }
     }
+
+    // ÚJ: free_text (mire kerestek)
+    const q = normalizeQuery(user.free_text);
+    if (q) {
+      stats.freeTextCount[q] = (stats.freeTextCount[q] || 0) + 1;
+    }
+
+    // ÚJ: demó megoszlások
+    inc(stats.genderCount, user.gender || "unknown");
+    inc(stats.relationshipCount, user.relationship || "unknown");
   }
 
-  // ÚJ: free_text (mire kerestek)
-  const q = normalizeQuery(user.free_text);
-  if (q) {
-    stats.freeTextCount[q] = (stats.freeTextCount[q] || 0) + 1;
-  }
-
-  // ÚJ: demó megoszlások
-  inc(stats.genderCount, user.gender || "unknown");
-  inc(stats.relationshipCount, user.relationship || "unknown");
+  // ✅ minden frissítés után kiírjuk diskre
+  saveStatsToDisk();
 }
 
 /**

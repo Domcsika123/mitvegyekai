@@ -7,7 +7,9 @@ import { Product } from "../models/Product";
 type CatalogMap = Record<string, Product[]>;
 
 const catalogs: CatalogMap = {};
-const DATA_DIR = path.join(__dirname, "..", "..", "data");
+
+// ✅ CSAK EZ VÁLTOZIK: DATA_DIR env támogatás (Render persistent diskhez)
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "..", "..", "data");
 
 /**
  * Gondoskodunk róla, hogy a data/ mappa létezzen.
