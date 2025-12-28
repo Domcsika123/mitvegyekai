@@ -170,90 +170,89 @@
 
     /* ====== MOBIL FIX v3 + KÖZÉPRE IGAZÍTÁS (nincs vízszintes scroll, kártyás táblázat) ====== */
     @media (max-width: 640px) {
-      /* KÖZÉP: a “dobozok” optikailag középen legyenek */
-      body { padding: 14px !important; }
+      /* iOS overflow + “nem középen van” fix */
+      *, *::before, *::after { box-sizing: border-box !important; }
+      body { padding: 14px !important; overflow-x: hidden !important; }
 
       .mv-container{
         width: 100% !important;
-        max-width: 520px !important;   /* mobilon szebb keret */
+        max-width: 520px !important;
         margin: 0 auto !important;
       }
 
       .mv-card{
         width: 100% !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
+        margin: 0 auto 18px auto !important;
         padding: 14px 14px !important;
       }
 
       /* táblázat -> kártyás lista */
-      table { width: 100% !important; border-collapse: separate; border-spacing: 0 10px; table-layout: auto !important; }
-      thead { display: none !important; }
+      table{
+        width: 100% !important;
+        border-collapse: collapse !important;   /* border-spacing kivesz: ez is tud eltolni iOS-en */
+        table-layout: auto !important;
+        margin: 0 !important;
+      }
+      thead{ display:none !important; }
 
-      tbody, tr, td { display: block !important; width: 100% !important; }
-      tr {
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 14px;
-        padding: 10px 12px;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.05);
-        margin: 0;
+      tbody, tr, td{ display:block !important; width:100% !important; }
+
+      tr{
+        background:#fff;
+        border:1px solid #e5e7eb;
+        border-radius:14px;
+        padding:10px 12px;
+        box-shadow:0 6px 18px rgba(0,0,0,0.05);
+        margin: 0 0 12px 0 !important; /* spacing így, nem border-spacinggel */
       }
 
-      /* cellák: ne legyen ... és ne tördelje betűnként */
-      td {
-        border: none !important;
-        padding: 8px 0 !important;
-        white-space: normal !important;
-        overflow: visible !important;
-        text-overflow: clip !important;
-        word-break: break-word !important;
+      td{
+        border:none !important;
+        padding:8px 0 !important;
+        white-space:normal !important;
+        overflow:visible !important;
+        text-overflow:clip !important;
+        word-break:break-word !important;
       }
 
-      /* címke a cella fölé */
       td::before{
-        display: block;
-        font-weight: 700;
-        color: #374151;
-        font-size: 12px;
-        margin-bottom: 4px;
+        display:block;
+        font-weight:700;
+        color:#374151;
+        font-size:12px;
+        margin-bottom:4px;
       }
 
-      /* ------- CÍMKÉK oszloponként (táblánként) ------- */
-
-      /* Webshop-katalógusok: 3 oszlop */
+      /* CÍMKÉK */
       #catalog-table tbody tr td:nth-child(1)::before { content: "site_key"; }
       #catalog-table tbody tr td:nth-child(2)::before { content: "Termékek száma"; }
       #catalog-table tbody tr td:nth-child(3)::before { content: "Teszt és műveletek"; }
 
-      /* Partnerek: 2 oszlop */
       #partner-table tbody tr td:nth-child(1)::before { content: "Név"; }
       #partner-table tbody tr td:nth-child(2)::before { content: "Műveletek"; }
 
-      /* Statisztika: 2 oszlop */
       #stats-table tbody tr td:nth-child(1)::before { content: "site_key"; }
       #stats-table tbody tr td:nth-child(2)::before { content: "Műveletek"; }
 
-      /* gombok mobilon: szélesek, egymás alatt */
-      .mv-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        align-items: stretch;
+      /* gombok mobilon: full width */
+      .mv-actions{
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+        align-items:stretch;
       }
       .mv-actions .mv-btn,
       .mv-actions .mv-inline-btn,
-      .mv-actions .mv-button-link {
-        width: 100%;
-        box-sizing: border-box;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        text-align: center;
-        justify-content: center;
+      .mv-actions .mv-button-link{
+        width:100%;
+        margin-left:0 !important;
+        margin-right:0 !important;
+        text-align:center;
+        justify-content:center;
       }
 
-      /* "AKTÍV" badge ne csússzon el */
-      .mv-pill { margin-left: 0 !important; margin-top: 6px; }
+      /* AKTÍV badge */
+      .mv-pill{ margin-left:0 !important; margin-top:6px; }
     }
   </style>
 
