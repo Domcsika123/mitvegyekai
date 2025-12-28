@@ -880,9 +880,22 @@
   </script>
 
   <script>
-    (function () {
-      const KEY = "mv_admin_scroll_y";
+  (function () {
+    const KEY = "mv_admin_scroll_y";
+    const ref = (document.referrer || "").toLowerCase();
 
+    // ✅ Csak akkor állítsuk vissza a pozíciót, ha aloldalról jöttünk vissza
+    // (így login után mindig a tetején indul)
+    const cameFromSubpage =
+      ref.includes("/partner.html") ||
+      ref.includes("/stats.html");
+
+    // Loginból / direkt megnyitásból NE restore-oljon
+    if (!cameFromSubpage) {
+      sessionStorage.removeItem(KEY);
+      // biztos ami biztos: mindig teteje
+      window.scrollTo(0, 0);
+    } else {
       const saved = sessionStorage.getItem(KEY);
       if (saved !== null) {
         const y = parseInt(saved, 10);
@@ -892,26 +905,29 @@
           );
         }
       }
+    }
 
-      let ticking = false;
-      window.addEventListener(
-        "scroll",
-        () => {
-          if (ticking) return;
-          ticking = true;
-          setTimeout(() => {
-            ticking = false;
-            sessionStorage.setItem(KEY, String(window.scrollY || 0));
-          }, 150);
-        },
-        { passive: true }
-      );
+    // Görgetés közben mentjük a pozíciót, hogy vissza lehessen állítani
+    let ticking = false;
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (ticking) return;
+        ticking = true;
+        setTimeout(() => {
+          ticking = false;
+          sessionStorage.setItem(KEY, String(window.scrollY || 0));
+        }, 150);
+      },
+      { passive: true }
+    );
 
-      window.addEventListener("pagehide", () => {
-        sessionStorage.setItem(KEY, String(window.scrollY || 0));
-      });
-    })();
-  </script>
+    window.addEventListener("pagehide", () => {
+      sessionStorage.setItem(KEY, String(window.scrollY || 0));
+    });
+  })();
+</script>
+
 
 </body>
 </html>

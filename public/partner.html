@@ -29,6 +29,24 @@
     .mv-btn-secondary { background: #e5e7eb; color: #111827; }
     .mv-status { margin-top: 8px; font-size: 13px; }
     .mv-status-error { color: #b91c1c; }
+
+    /* ✅ CSAK MOBILON: api_key legyen egy sorban + belső scroll a dobozon */
+    @media (max-width: 640px) {
+      #p-api-key {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 10px 12px;
+
+        white-space: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+
+        display: block;
+        max-width: 100%;
+      }
+    }
   </style>
 
   <script>
