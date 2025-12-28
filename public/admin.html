@@ -888,61 +888,70 @@
       ref.includes("/partner.html") ||
       ref.includes("/stats.html");
 
-    // ✅ kattintáskor azonnali mentés (pontos)
+    // ✅ pontos mentés kattintáskor
     document.addEventListener("click", (e) => {
       const el = e.target && e.target.closest ? e.target.closest("a,button") : null;
       if (!el) return;
       sessionStorage.setItem(KEY, String(window.scrollY || 0));
     }, true);
 
-    // ✅ scroll közben is mentjük, de ez csak backup
-    let ticking = false;
-    window.addEventListener("scroll", () => {
-      if (ticking) return;
-      ticking = true;
-      setTimeout(() => {
-        ticking = false;
-        sessionStorage.setItem(KEY, String(window.scrollY || 0));
-      }, 200);
-    }, { passive: true });
-
     window.addEventListener("pagehide", () => {
       sessionStorage.setItem(KEY, String(window.scrollY || 0));
     });
 
-    // Loginból / direkt megnyitásból: ne restore
+    // Loginból / direkt megnyitásból: NE restore, mindig teteje
     if (!cameFromSubpage) {
       sessionStorage.removeItem(KEY);
-      window.scrollTo(0, 0);
       return;
     }
 
-    // ✅ Aloldalról vissza: 1x “stabil” visszaállítás, minimál ugrálással
     const saved = sessionStorage.getItem(KEY);
-    if (saved === null) return;
-
-    const y = parseInt(saved, 10);
+    const y = saved !== null ? parseInt(saved, 10) : NaN;
     if (Number.isNaN(y)) return;
 
-    // iOS/Safari "ugrálás" ellen:
-    // röviden lefagyasztjuk a scrollt, majd egyszer beállítjuk
+    // ✅ Böngésző saját scroll restore OFF
+    try {
+      if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    } catch (_) {}
+
+    // ✅ Ne látszódjon az "ugrálás": rejtsük el, amíg betölt + scroll beáll
     const html = document.documentElement;
-    const prevOverflow = html.style.overflow;
-    html.style.overflow = "hidden";
+    const prevVis = html.style.visibility;
+    html.style.visibility = "hidden";
 
-    // Várunk kicsit, hogy a táblák betöltése meginduljon, és stabilabb legyen a layout
-    // (ez azért kell, mert a fetch-ek DOM-ot változtatnak)
-    setTimeout(() => {
-      window.scrollTo(0, y);
+    // initAdmin-t "becsomagoljuk": előbb betölt mindent, aztán 1x scroll, majd megjelenít
+    const origInit = window.initAdmin;
 
-      // 1 finom korrekció picit később (nem 12x)
+    if (typeof origInit === "function") {
+      window.initAdmin = async function (...args) {
+        // biztos ami biztos: ne animáljon a scroll
+        const prevSB = html.style.scrollBehavior;
+        html.style.scrollBehavior = "auto";
+
+        try {
+          await origInit.apply(this, args);
+        } finally {
+          // 1 stabil scroll beállítás a végén
+          requestAnimationFrame(() => {
+            window.scrollTo(0, y);
+            requestAnimationFrame(() => {
+              window.scrollTo(0, y);
+              html.style.visibility = prevVis || "visible";
+              html.style.scrollBehavior = prevSB || "";
+            });
+          });
+        }
+      };
+    } else {
+      // fallback (ha valamiért nincs initAdmin): időzített restore + megjelenítés
       setTimeout(() => {
         window.scrollTo(0, y);
-        html.style.overflow = prevOverflow || "";
-      }, 220);
-    }, 520);
+        html.style.visibility = prevVis || "visible";
+      }, 700);
+    }
   })();
 </script>
+
 
 
 
