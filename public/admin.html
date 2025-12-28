@@ -879,7 +879,7 @@
     window.addEventListener("DOMContentLoaded", initAdmin);
   </script>
 
-  <script>
+<script>
   (function () {
     const KEY = "mv_admin_scroll_y";
     const ref = (document.referrer || "").toLowerCase();
@@ -888,40 +888,14 @@
       ref.includes("/partner.html") ||
       ref.includes("/stats.html");
 
-    // loginból / direkt megnyitásból: ne restore
-    if (!cameFromSubpage) {
-      sessionStorage.removeItem(KEY);
-      window.scrollTo(0, 0);
-    } else {
-      const saved = sessionStorage.getItem(KEY);
-      if (saved !== null) {
-        const y = parseInt(saved, 10);
-        if (!Number.isNaN(y)) {
-          // ✅ több próbálkozás, hogy betöltések után is pontos legyen
-          let tries = 0;
-          const maxTries = 12;
-
-          const tryScroll = () => {
-            window.scrollTo(0, y);
-            tries++;
-            if (tries < maxTries) {
-              setTimeout(tryScroll, 80);
-            }
-          };
-
-          requestAnimationFrame(() => setTimeout(tryScroll, 0));
-        }
-      }
-    }
-
-    // ✅ azonnali mentés kattintáskor (pontosság miatt)
+    // ✅ kattintáskor azonnali mentés (pontos)
     document.addEventListener("click", (e) => {
-      const a = e.target && e.target.closest ? e.target.closest("a,button") : null;
-      if (!a) return;
+      const el = e.target && e.target.closest ? e.target.closest("a,button") : null;
+      if (!el) return;
       sessionStorage.setItem(KEY, String(window.scrollY || 0));
     }, true);
 
-    // ✅ scroll közben is mentjük (de nem ez a fő)
+    // ✅ scroll közben is mentjük, de ez csak backup
     let ticking = false;
     window.addEventListener("scroll", () => {
       if (ticking) return;
@@ -929,14 +903,47 @@
       setTimeout(() => {
         ticking = false;
         sessionStorage.setItem(KEY, String(window.scrollY || 0));
-      }, 150);
+      }, 200);
     }, { passive: true });
 
     window.addEventListener("pagehide", () => {
       sessionStorage.setItem(KEY, String(window.scrollY || 0));
     });
+
+    // Loginból / direkt megnyitásból: ne restore
+    if (!cameFromSubpage) {
+      sessionStorage.removeItem(KEY);
+      window.scrollTo(0, 0);
+      return;
+    }
+
+    // ✅ Aloldalról vissza: 1x “stabil” visszaállítás, minimál ugrálással
+    const saved = sessionStorage.getItem(KEY);
+    if (saved === null) return;
+
+    const y = parseInt(saved, 10);
+    if (Number.isNaN(y)) return;
+
+    // iOS/Safari "ugrálás" ellen:
+    // röviden lefagyasztjuk a scrollt, majd egyszer beállítjuk
+    const html = document.documentElement;
+    const prevOverflow = html.style.overflow;
+    html.style.overflow = "hidden";
+
+    // Várunk kicsit, hogy a táblák betöltése meginduljon, és stabilabb legyen a layout
+    // (ez azért kell, mert a fetch-ek DOM-ot változtatnak)
+    setTimeout(() => {
+      window.scrollTo(0, y);
+
+      // 1 finom korrekció picit később (nem 12x)
+      setTimeout(() => {
+        window.scrollTo(0, y);
+        html.style.overflow = prevOverflow || "";
+      }, 220);
+    }, 520);
   })();
 </script>
+
 
 
 
