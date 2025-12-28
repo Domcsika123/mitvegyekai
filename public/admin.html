@@ -884,49 +884,60 @@
     const KEY = "mv_admin_scroll_y";
     const ref = (document.referrer || "").toLowerCase();
 
-    // ✅ Csak akkor állítsuk vissza a pozíciót, ha aloldalról jöttünk vissza
-    // (így login után mindig a tetején indul)
     const cameFromSubpage =
       ref.includes("/partner.html") ||
       ref.includes("/stats.html");
 
-    // Loginból / direkt megnyitásból NE restore-oljon
+    // loginból / direkt megnyitásból: ne restore
     if (!cameFromSubpage) {
       sessionStorage.removeItem(KEY);
-      // biztos ami biztos: mindig teteje
       window.scrollTo(0, 0);
     } else {
       const saved = sessionStorage.getItem(KEY);
       if (saved !== null) {
         const y = parseInt(saved, 10);
         if (!Number.isNaN(y)) {
-          requestAnimationFrame(() =>
-            requestAnimationFrame(() => window.scrollTo(0, y))
-          );
+          // ✅ több próbálkozás, hogy betöltések után is pontos legyen
+          let tries = 0;
+          const maxTries = 12;
+
+          const tryScroll = () => {
+            window.scrollTo(0, y);
+            tries++;
+            if (tries < maxTries) {
+              setTimeout(tryScroll, 80);
+            }
+          };
+
+          requestAnimationFrame(() => setTimeout(tryScroll, 0));
         }
       }
     }
 
-    // Görgetés közben mentjük a pozíciót, hogy vissza lehessen állítani
+    // ✅ azonnali mentés kattintáskor (pontosság miatt)
+    document.addEventListener("click", (e) => {
+      const a = e.target && e.target.closest ? e.target.closest("a,button") : null;
+      if (!a) return;
+      sessionStorage.setItem(KEY, String(window.scrollY || 0));
+    }, true);
+
+    // ✅ scroll közben is mentjük (de nem ez a fő)
     let ticking = false;
-    window.addEventListener(
-      "scroll",
-      () => {
-        if (ticking) return;
-        ticking = true;
-        setTimeout(() => {
-          ticking = false;
-          sessionStorage.setItem(KEY, String(window.scrollY || 0));
-        }, 150);
-      },
-      { passive: true }
-    );
+    window.addEventListener("scroll", () => {
+      if (ticking) return;
+      ticking = true;
+      setTimeout(() => {
+        ticking = false;
+        sessionStorage.setItem(KEY, String(window.scrollY || 0));
+      }, 150);
+    }, { passive: true });
 
     window.addEventListener("pagehide", () => {
       sessionStorage.setItem(KEY, String(window.scrollY || 0));
     });
   })();
 </script>
+
 
 
 </body>
