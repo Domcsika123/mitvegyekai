@@ -796,5 +796,43 @@
 
     window.addEventListener("DOMContentLoaded", initAdmin);
   </script>
+
+  <script>
+  (function () {
+    const KEY = "mv_admin_scroll_y";
+
+    // ✅ Visszaállítás betöltéskor
+    const saved = sessionStorage.getItem(KEY);
+    if (saved !== null) {
+      const y = parseInt(saved, 10);
+      if (!Number.isNaN(y)) {
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => window.scrollTo(0, y))
+        );
+      }
+    }
+
+    // ✅ Mentés görgetés közben (kicsit throttlingolva)
+    let ticking = false;
+    window.addEventListener(
+      "scroll",
+      () => {
+        if (ticking) return;
+        ticking = true;
+        setTimeout(() => {
+          ticking = false;
+          sessionStorage.setItem(KEY, String(window.scrollY || 0));
+        }, 150);
+      },
+      { passive: true }
+    );
+
+    // ✅ Mentés oldal elhagyásakor is
+    window.addEventListener("pagehide", () => {
+      sessionStorage.setItem(KEY, String(window.scrollY || 0));
+    });
+  })();
+</script>
+
 </body>
 </html>
