@@ -888,7 +888,7 @@
       ref.includes("/partner.html") ||
       ref.includes("/stats.html");
 
-    // ✅ kattintáskor azonnali mentés (pontos)
+    // ✅ pontos mentés kattintáskor
     document.addEventListener("click", (e) => {
       const el = e.target && e.target.closest ? e.target.closest("a,button") : null;
       if (!el) return;
@@ -899,10 +899,15 @@
       sessionStorage.setItem(KEY, String(window.scrollY || 0));
     });
 
+    // ✅ a böngésző saját scroll-visszaállítása OFF (különben duplán “ugrálhat”)
+    try {
+      if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    } catch (_) {}
+
     // Loginból / direkt megnyitásból: NE restore, mindig teteje
     if (!cameFromSubpage) {
       sessionStorage.removeItem(KEY);
-      try { if ("scrollRestoration" in history) history.scrollRestoration = "manual"; } catch (_) {}
+      window.scrollTo(0, 0);
       return;
     }
 
@@ -910,50 +915,89 @@
     const y = saved !== null ? parseInt(saved, 10) : NaN;
     if (Number.isNaN(y)) return;
 
-    try { if ("scrollRestoration" in history) history.scrollRestoration = "manual"; } catch (_) {}
-
+    const body = document.body;
     const html = document.documentElement;
 
-    // ✅ nagyon rövid fade, hogy ne lásd a "teteje -> ugrás" dolgot
-    const prevOpacity = html.style.opacity;
-    const prevTransition = html.style.transition;
+    let locked = false;
+    let unlockTimer = null;
+    let observer = null;
 
-    function show() {
-      html.style.opacity = prevOpacity || "1";
-      html.style.transition = prevTransition || "";
+    function lockScroll() {
+      if (locked) return;
+      locked = true;
+
+      // fixáljuk a “nézetet” a mentett pozícióra → nem fog ugrálni miközben a DOM változik
+      body.style.position = "fixed";
+      body.style.top = `-${y}px`;
+      body.style.left = "0";
+      body.style.right = "0";
+      body.style.width = "100%";
+      body.style.overflow = "hidden";
     }
 
-    function restoreOnce() {
-      const prevSB = html.style.scrollBehavior;
-      html.style.scrollBehavior = "auto";
+    function unlockScroll() {
+      if (!locked) return;
+      locked = false;
 
-      window.scrollTo(0, y);
-      requestAnimationFrame(() => {
-        window.scrollTo(0, y);
-        html.style.scrollBehavior = prevSB || "";
-        show();
+      // visszaállítjuk a normál scrollt
+      const top = body.style.top;
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.width = "";
+      body.style.overflow = "";
+
+      // biztos: pontosan oda
+      const finalY = y; // mentett cél
+      window.scrollTo(0, finalY);
+
+      if (observer) {
+        observer.disconnect();
+        observer = null;
+      }
+      if (unlockTimer) {
+        clearTimeout(unlockTimer);
+        unlockTimer = null;
+      }
+    }
+
+    // DOM stabilitás figyelés: ha 220ms-ig nincs változás → elengedjük
+    function armUnlockWhenStable() {
+      const target = document.querySelector(".mv-container") || body;
+
+      const schedule = () => {
+        if (unlockTimer) clearTimeout(unlockTimer);
+        unlockTimer = setTimeout(() => {
+          unlockScroll();
+        }, 220);
+      };
+
+      observer = new MutationObserver(() => {
+        // minden DOM változásnál újraindítjuk az “elcsendesedés” órát
+        schedule();
       });
+
+      observer.observe(target, { childList: true, subtree: true, attributes: true });
+
+      // indításkor is elindítjuk az órát (ha gyorsan kész van, gyorsan old)
+      schedule();
+
+      // failsafe: max 2.5s után akkor is oldjon (ne ragadjon be semmi)
+      setTimeout(() => unlockScroll(), 2500);
     }
 
-    // Induláskor azonnal “láthatatlan”, de garantáltan visszajön
-    html.style.transition = "opacity 120ms ease";
-    html.style.opacity = "0";
-
-    // Biztosíték: SOSE marad fehér
-    setTimeout(show, 600);
-
-    const run = () => {
-      // várunk egy picit, hogy a DOM elinduljon (betöltések), aztán 1x restore
-      requestAnimationFrame(() => setTimeout(restoreOnce, 140));
-    };
-
-    if (document.readyState === "loading") {
-      window.addEventListener("DOMContentLoaded", run, { once: true });
-    } else {
-      run();
+    function run() {
+      // azonnal lock (amint visszajöttünk), hogy ne látszódjon az ugrálás
+      lockScroll();
+      armUnlockWhenStable();
     }
+
+    // pageshow: back/forward cache esetén is működjön
+    window.addEventListener("pageshow", run, { once: true });
   })();
 </script>
+
 
 
 
