@@ -1,6 +1,5 @@
 // src/app.ts
 import express from "express";
-import cors from "cors";
 import path from "path";
 
 import recommendRouter from "./routes/recommend";
@@ -11,7 +10,6 @@ import { adminAuth } from "./middleware/adminAuth";
 const app = express();
 
 // Alap middleware-k
-app.use(cors());
 app.use(express.json());
 
 // Statikus fájlok (demo.html, admin.html, widget.js, stb.)

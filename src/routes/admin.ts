@@ -1,5 +1,4 @@
 // src/routes/admin.ts
-
 import { Router } from "express";
 import { listCatalogs, replaceCatalog, deleteCatalog } from "../services/productService";
 import { getAllStats } from "../services/statsService";
@@ -11,44 +10,36 @@ import {
   deletePartner,
   findPartnerBySiteKey,
   setPartnerBlocked,
+  setPartnerAllowedDomains,
+  rotatePartnerApiKey,
 } from "../services/partnerService";
 
 const router = Router();
 
 /* ---------- KATALÓGUSOK ---------- */
 
-// GET /api/admin/catalogs
 router.get("/catalogs", (req, res) => {
   try {
     const catalogs = listCatalogs();
     return res.json({ catalogs });
   } catch (err) {
     console.error("Hiba a /api/admin/catalogs hívásban:", err);
-    return res
-      .status(500)
-      .json({ error: "Nem sikerült lekérni a katalógusokat." });
+    return res.status(500).json({ error: "Nem sikerült lekérni a katalógusokat." });
   }
 });
 
-// POST /api/admin/import-products
 router.post("/import-products", async (req, res) => {
   try {
     const { site_key, items } = req.body || {};
 
     if (!site_key || typeof site_key !== "string") {
-      return res
-        .status(400)
-        .json({ error: "site_key kötelező és string legyen." });
+      return res.status(400).json({ error: "site_key kötelező és string legyen." });
     }
 
-    // ⬇⬇⬇ ellenőrizzük, hogy létezik-e ilyen partner / site_key
     const partner = findPartnerBySiteKey(site_key);
     if (!partner) {
-      return res.status(400).json({
-        error: `Nincs ilyen partner vagy site_key: ${site_key}`,
-      });
+      return res.status(400).json({ error: `Nincs ilyen partner vagy site_key: ${site_key}` });
     }
-    // ⬆⬆⬆
 
     if (!Array.isArray(items)) {
       return res.status(400).json({ error: "items tömb szükséges." });
@@ -70,22 +61,16 @@ router.post("/import-products", async (req, res) => {
       };
 
       if (!p.product_id || !p.name) {
-        return res.status(400).json({
-          error: "Minden terméknek kell product_id és name mező.",
-        });
+        return res.status(400).json({ error: "Minden terméknek kell product_id és name mező." });
       }
 
       if (Number.isNaN(p.price)) {
-        return res.status(400).json({
-          error: `Érvénytelen price érték a terméknél: ${p.product_id}`,
-        });
+        return res.status(400).json({ error: `Érvénytelen price érték a terméknél: ${p.product_id}` });
       }
 
       products.push(p);
     }
 
-    // ✅ ÚJ: embeddingek legyártása importkor (változó termékszámra batch-ben)
-    // Default batch: 64 (nagy katalógusnál is stabil)
     const batchSize = Number(process.env.EMBED_BATCH_SIZE || 64) || 64;
 
     let productsWithEmbeddings: Product[] = [];
@@ -100,7 +85,7 @@ router.post("/import-products", async (req, res) => {
 
     replaceCatalog(site_key, productsWithEmbeddings, true);
 
-    const embeddedCount = productsWithEmbeddings.filter((p) => Array.isArray(p.embedding)).length;
+    const embeddedCount = productsWithEmbeddings.filter((p: any) => Array.isArray(p.embedding)).length;
 
     return res.json({
       ok: true,
@@ -111,163 +96,143 @@ router.post("/import-products", async (req, res) => {
     });
   } catch (err) {
     console.error("Hiba a /api/admin/import-products hívásban:", err);
-    return res
-      .status(500)
-      .json({ error: "Hiba történt az import során a szerveren." });
+    return res.status(500).json({ error: "Hiba történt az import során a szerveren." });
   }
 });
 
-// DELETE /api/admin/catalogs/:site_key
 router.delete("/catalogs/:site_key", (req, res) => {
   try {
     const { site_key } = req.params;
-    if (!site_key) {
-      return res.status(400).json({ error: "site_key kötelező." });
-    }
+    if (!site_key) return res.status(400).json({ error: "site_key kötelező." });
 
     deleteCatalog(site_key);
-
     return res.json({ ok: true });
   } catch (err) {
     console.error("Hiba a /api/admin/catalogs/:site_key (DELETE) hívásban:", err);
-    return res
-      .status(500)
-      .json({ error: "Hiba történt a katalógus törlése során." });
+    return res.status(500).json({ error: "Hiba történt a katalógus törlése során." });
   }
 });
 
 /* ---------- STATISZTIKA ---------- */
 
-// GET /api/admin/stats
 router.get("/stats", (req, res) => {
   try {
     const stats = getAllStats();
     return res.json({ stats });
   } catch (err) {
     console.error("Hiba a /api/admin/stats hívásban:", err);
-    return res
-      .status(500)
-      .json({ error: "Nem sikerült lekérni a statisztikákat." });
+    return res.status(500).json({ error: "Nem sikerült lekérni a statisztikákat." });
   }
 });
 
 /* ---------- PARTNEREK ---------- */
 
-// GET /api/admin/partners
 router.get("/partners", (req, res) => {
   try {
     const partners = listPartners();
     return res.json({ partners });
   } catch (err) {
     console.error("Hiba a /api/admin/partners (GET) hívásban:", err);
-    return res
-      .status(500)
-      .json({ error: "Nem sikerült lekérni a partnereket." });
+    return res.status(500).json({ error: "Nem sikerült lekérni a partnereket." });
   }
 });
 
-// POST /api/admin/partners
 router.post("/partners", (req, res) => {
   try {
     const { name } = req.body || {};
     if (!name || typeof name !== "string") {
-      return res
-        .status(400)
-        .json({ error: "A partner neve (name) kötelező." });
+      return res.status(400).json({ error: "A partner neve (name) kötelező." });
     }
 
     const partner = createPartner(name);
     return res.json({ partner });
   } catch (err) {
     console.error("Hiba a /api/admin/partners (POST) hívásban:", err);
-    return res
-      .status(500)
-      .json({ error: "Hiba történt a partner létrehozásakor." });
+    return res.status(500).json({ error: "Hiba történt a partner létrehozásakor." });
   }
 });
 
-// POST /api/admin/partners/:site_key/block
 router.post("/partners/:site_key/block", (req, res) => {
   try {
     const { site_key } = req.params;
     const { blocked } = req.body || {};
 
-    if (!site_key) {
-      return res
-        .status(400)
-        .json({ error: "Hiányzik a site_key paraméter." });
-    }
-
+    if (!site_key) return res.status(400).json({ error: "Hiányzik a site_key paraméter." });
     if (typeof blocked !== "boolean") {
-      return res
-        .status(400)
-        .json({ error: "blocked mező kötelező és boolean legyen." });
+      return res.status(400).json({ error: "blocked mező kötelező és boolean legyen." });
     }
 
     const partner = setPartnerBlocked(site_key, blocked);
-    if (!partner) {
-      return res.status(404).json({ error: "Nincs ilyen partner." });
-    }
+    if (!partner) return res.status(404).json({ error: "Nincs ilyen partner." });
 
     return res.json({ ok: true, partner });
   } catch (err) {
-    console.error(
-      "Hiba a /api/admin/partners/:site_key/block hívásban:",
-      err
-    );
-    return res
-      .status(500)
-      .json({ error: "Hiba történt a blokkolás során." });
+    console.error("Hiba a /api/admin/partners/:site_key/block hívásban:", err);
+    return res.status(500).json({ error: "Hiba történt a blokkolás során." });
   }
 });
 
-// DELETE /api/admin/partners/:site_key
+/** ✅ ÚJ: allowed domains mentése */
+router.post("/partners/:site_key/allowed-domains", (req, res) => {
+  try {
+    const { site_key } = req.params;
+    const { allowed_domains } = req.body || {};
+
+    if (!site_key) return res.status(400).json({ error: "Hiányzik a site_key paraméter." });
+
+    const partner = setPartnerAllowedDomains(site_key, allowed_domains);
+    if (!partner) return res.status(404).json({ error: "Nincs ilyen partner." });
+
+    return res.json({ ok: true, partner });
+  } catch (err) {
+    console.error("Hiba a /api/admin/partners/:site_key/allowed-domains hívásban:", err);
+    return res.status(500).json({ error: "Hiba történt az allowed domains mentésekor." });
+  }
+});
+
+/** ✅ ÚJ: API key rotálás */
+router.post("/partners/:site_key/rotate-key", (req, res) => {
+  try {
+    const { site_key } = req.params;
+    if (!site_key) return res.status(400).json({ error: "Hiányzik a site_key paraméter." });
+
+    const partner = rotatePartnerApiKey(site_key);
+    if (!partner) return res.status(404).json({ error: "Nincs ilyen partner." });
+
+    return res.json({ ok: true, partner });
+  } catch (err) {
+    console.error("Hiba a /api/admin/partners/:site_key/rotate-key hívásban:", err);
+    return res.status(500).json({ error: "Hiba történt az API key rotálás során." });
+  }
+});
+
 router.delete("/partners/:site_key", (req, res) => {
   try {
     const { site_key } = req.params;
-    if (!site_key) {
-      return res
-        .status(400)
-        .json({ error: "Hiányzik a site_key paraméter." });
-    }
+    if (!site_key) return res.status(400).json({ error: "Hiányzik a site_key paraméter." });
 
     const ok = deletePartner(site_key);
-    if (!ok) {
-      return res.status(404).json({ error: "Nincs ilyen partner." });
-    }
+    if (!ok) return res.status(404).json({ error: "Nincs ilyen partner." });
 
-    // partnerhez tartozó katalógus törlése is
     deleteCatalog(site_key);
-
     return res.json({ ok: true });
   } catch (err) {
-    console.error(
-      "Hiba a /api/admin/partners/:site_key (DELETE) hívásban:",
-      err
-    );
+    console.error("Hiba a /api/admin/partners/:site_key (DELETE) hívásban:", err);
     return res.status(500).json({ error: "Hiba történt a törlés során." });
   }
 });
 
-// GET /api/admin/partners/:site_key (részletes adat partner.html-hez)
 router.get("/partners/:site_key", (req, res) => {
   try {
     const { site_key } = req.params;
     const partner = findPartnerBySiteKey(site_key);
 
-    if (!partner) {
-      return res.status(404).json({ error: "Nincs ilyen partner." });
-    }
+    if (!partner) return res.status(404).json({ error: "Nincs ilyen partner." });
 
     return res.json({ partner });
   } catch (err) {
-    console.error(
-      "Hiba a /api/admin/partners/:site_key (GET, detail) hívásban:",
-      err
-    );
-    return res
-      .status(500)
-      .json({ error: "Hiba történt a partner lekérdezésekor." });
+    console.error("Hiba a /api/admin/partners/:site_key (GET, detail) hívásban:", err);
+    return res.status(500).json({ error: "Hiba történt a partner lekérdezésekor." });
   }
 });
 

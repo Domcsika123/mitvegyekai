@@ -10,20 +10,49 @@ export interface Partner {
   site_key: string;
   api_key: string;
   created_at: string;
-  blocked?: boolean; // partner blokkolt-e
+  blocked?: boolean;
+
+  // ✅ ÚJ: megengedett domain lista (CORS whitelist)
+  // Példák: ["shop1.hu", "www.shop1.hu", "shop1.eu"]
+  allowed_domains?: string[];
 }
 
-// ✅ CSAK EZ VÁLTOZIK: DATA_DIR env támogatás (Render persistent diskhez)
+// ✅ Render persistent disk támogatás
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "..", "..", "data");
 const PARTNERS_FILE = path.join(DATA_DIR, "partners.json");
 
 let partners: Partner[] = [];
 
-/** Gondoskodunk róla, hogy a data/ mappa létezzen. */
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
+}
+
+function normalizeDomain(raw: any): string {
+  let s = String(raw ?? "").trim().toLowerCase();
+  if (!s) return "";
+
+  // ha valaki véletlen protokollt/prefixet ad meg
+  s = s.replace(/^https?:\/\//, "");
+  s = s.replace(/^www\./, "www."); // ne változtassuk, csak tisztítsunk
+  // ha van path/query
+  s = s.split("/")[0];
+  // ha van port
+  s = s.split(":")[0];
+
+  return s.trim();
+}
+
+function normalizeDomainList(domains: any): string[] {
+  if (!domains) return [];
+  const arr = Array.isArray(domains) ? domains : [domains];
+  const out = arr
+    .map(normalizeDomain)
+    .filter(Boolean);
+
+  // unique
+  return Array.from(new Set(out));
 }
 
 /** partners.json beolvasása lemezről (ha létezik). */
@@ -63,6 +92,7 @@ function loadFromDisk(): Partner[] {
         api_key,
         created_at: String(p.created_at ?? p.createdAt ?? now),
         blocked: Boolean(p.blocked) || false,
+        allowed_domains: normalizeDomainList(p.allowed_domains),
       };
     });
 
@@ -83,7 +113,6 @@ function saveToDisk() {
   }
 }
 
-/** Név → slug-szerű site_key (kisbetű, szóköz helyett kötőjel, speciális jelek törlése). */
 function slugifyName(name: string): string {
   return name
     .toLowerCase()
@@ -94,7 +123,6 @@ function slugifyName(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-/** Egyedi site_key generálása (ha foglalt, kap -2, -3 stb. végződést). */
 function generateSiteKey(baseName: string): string {
   const base = slugifyName(baseName) || "partner";
   let candidate = base;
@@ -108,24 +136,20 @@ function generateSiteKey(baseName: string): string {
   return candidate;
 }
 
-/** Random api_key generálás (saját partner API kulcs). */
 function generateApiKey(): string {
   return crypto.randomBytes(24).toString("hex");
 }
 
-/** Modul betöltésekor megpróbáljuk betölteni a meglévő partnereket. */
 (function init() {
   partners = loadFromDisk();
   console.log(`[partnerService] Betöltött partnerek száma: ${partners.length}`);
 })();
 
-/** Partnerek listája adminnak. */
 export function listPartners(): Partner[] {
   partners = loadFromDisk();
   return partners;
 }
 
-/** Új partner létrehozása. */
 export function createPartner(name: string): Partner {
   partners = loadFromDisk();
 
@@ -140,6 +164,7 @@ export function createPartner(name: string): Partner {
     api_key,
     created_at: new Date().toISOString(),
     blocked: false,
+    allowed_domains: [],
   };
 
   partners.push(partner);
@@ -152,7 +177,6 @@ export function createPartner(name: string): Partner {
   return partner;
 }
 
-/** Partner lekérdezése site_key alapján. */
 export function findPartnerBySiteKey(siteKey: string): Partner | null {
   partners = loadFromDisk();
 
@@ -162,7 +186,6 @@ export function findPartnerBySiteKey(siteKey: string): Partner | null {
   return partners.find((p) => p.site_key === key) || null;
 }
 
-/** ✅ ÚJ: Partner lekérdezése api_key alapján (widget / recommend guardhoz). */
 export function findPartnerByApiKey(apiKey: string): Partner | null {
   partners = loadFromDisk();
 
@@ -172,7 +195,6 @@ export function findPartnerByApiKey(apiKey: string): Partner | null {
   return partners.find((p) => p.api_key === key) || null;
 }
 
-/** Partner blokkolt státuszának beállítása. */
 export function setPartnerBlocked(siteKey: string, blocked: boolean): Partner | null {
   partners = loadFromDisk();
 
@@ -192,7 +214,43 @@ export function setPartnerBlocked(siteKey: string, blocked: boolean): Partner | 
   return partner;
 }
 
-/** Partner törlése site_key alapján. */
+/** ✅ ÚJ: allowed domains mentése */
+export function setPartnerAllowedDomains(siteKey: string, domains: any): Partner | null {
+  partners = loadFromDisk();
+
+  const key = (siteKey || "").trim();
+  if (!key) return null;
+
+  const partner = partners.find((p) => p.site_key === key);
+  if (!partner) return null;
+
+  partner.allowed_domains = normalizeDomainList(domains);
+  saveToDisk();
+
+  console.log(
+    `[partnerService] allowed_domains frissítve: site_key="${partner.site_key}", count=${partner.allowed_domains.length}`
+  );
+
+  return partner;
+}
+
+/** ✅ ÚJ: API kulcs rotálás */
+export function rotatePartnerApiKey(siteKey: string): Partner | null {
+  partners = loadFromDisk();
+
+  const key = (siteKey || "").trim();
+  if (!key) return null;
+
+  const partner = partners.find((p) => p.site_key === key);
+  if (!partner) return null;
+
+  partner.api_key = generateApiKey();
+  saveToDisk();
+
+  console.log(`[partnerService] API key rotálva: site_key="${partner.site_key}"`);
+  return partner;
+}
+
 export function deletePartner(siteKey: string): boolean {
   partners = loadFromDisk();
 
