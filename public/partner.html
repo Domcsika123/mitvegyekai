@@ -130,10 +130,13 @@
 
         <div>
           <div class="mv-label">Megengedett domainek (CORS whitelist)</div>
-          <div class="mv-small">
+
+          <!-- ✅ csak ennyi változott itt: kapott egy id-t -->
+          <div class="mv-small" id="domains-help">
             Írhatsz soronként, vesszővel vagy szóközzel is (pl. <b>shop1.hu</b>, <b>www.shop1.hu</b>, <b>shop1.eu</b>).<br/>
             Teljes URL is jó (pl. <b>https://shop1.hu/akarmi</b>) — automatikusan hostra tisztítjuk.
           </div>
+
           <textarea id="domains"></textarea>
           <button id="save-domains-btn" class="mv-btn mv-btn-primary">Domainek mentése</button>
           <div id="domains-msg" class="mv-status"></div>
@@ -218,8 +221,15 @@
         domainsMsgTimer = setTimeout(() => {
           msg.textContent = "";
           msg.className = "mv-status";
-        }, 2000); // <- 2 mp (állítsd 1500-3000 közé)
+        }, 2000);
       }
+    }
+
+    // ✅ példa domainek: site_key-ből csinálunk olvasható host példát
+    function makeExampleBaseFromSiteKey(siteKey) {
+      const sk = String(siteKey || "shop").trim().toLowerCase();
+      const safe = sk.replace(/[^a-z0-9-]/g, "") || "shop";
+      return safe;
     }
 
     async function loadPartner() {
@@ -252,6 +262,15 @@
         document.getElementById("p-site-key").textContent = p.site_key;
         document.getElementById("p-api-key").textContent = p.api_key;
 
+        // ✅ itt a lényeg: domains help szöveg dinamikusan a site_key-hez
+        const base = makeExampleBaseFromSiteKey(p.site_key);
+        const help = document.getElementById("domains-help");
+        if (help) {
+          help.innerHTML =
+            `Írhatsz soronként, vesszővel vagy szóközzel is (pl. <b>${base}.hu</b>, <b>www.${base}.hu</b>, <b>${base}.eu</b>).<br/>` +
+            `Teljes URL is jó (pl. <b>https://${base}.hu/akarmi</b>) — automatikusan hostra tisztítjuk.`;
+        }
+
         const createdRaw = p.created_at || p.createdAt || p.created_at_iso || p.created;
         document.getElementById("p-created").textContent = createdRaw
           ? new Date(createdRaw).toLocaleString("hu-HU")
@@ -280,8 +299,6 @@
           setDomainsMsg("", null);
 
           const raw = document.getElementById("domains").value || "";
-
-          // ✅ itt lett rugalmas: sor/vessző/szóköz/URL mind oké
           const list = parseDomains(raw);
 
           try {
@@ -294,9 +311,7 @@
             const d = await r.json().catch(() => ({}));
             if (!r.ok) throw new Error(d.error || "Mentés sikertelen.");
 
-            // opcionális: visszaírjuk szépen soronként, tisztítva
             document.getElementById("domains").value = list.join("\n");
-
             setDomainsMsg("Mentve ✔", true);
           } catch (e) {
             setDomainsMsg(e.message || "Hiba", false);
