@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mitvegyek.ai – Widget szerkesztő</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #f3f4f6;
+    }
+    h1 { margin-bottom: 8px; }
+    h2 { margin: 0 0 10px 0; }
+    .mv-container { max-width: 1100px; margin: 0 auto; }
+    .mv-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      padding: 18px 20px;
+      margin-bottom: 18px;
+    }
+    .mv-small { font-size: 13px; color: #4b5563; line-height: 1.4; }
+
+    .mv-topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom: 10px;
+    }
+
+    .mv-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      padding: 7px 14px;
+      font-size: 13px;
+      white-space: nowrap;
+      font-weight: 400;
+    }
+    .mv-btn-primary { background: #2563eb; color: white; }
+    .mv-btn-primary:hover { background: #1d4ed8; }
+    .mv-btn-secondary { background: #e5e7eb; color: #111827; }
+    .mv-btn-secondary:hover { background: #d1d5db; }
+    .mv-btn-danger { background: #dc2626; color: white; }
+    .mv-btn-danger:hover { background: #b91c1c; }
+
+    .mv-input-row { display:flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    .mv-input-group { display:flex; flex-direction:column; min-width: 160px; flex: 1; }
+    .mv-input-group label { font-size: 12px; color: #4b5563; margin-bottom: 4px; font-weight: 700; }
+    .mv-input-group input, .mv-input-group textarea, .mv-input-group select {
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      background: white;
+    }
+    .mv-input-group textarea { min-height: 120px; resize: vertical; }
+    .mv-input-group input:focus, .mv-input-group textarea:focus, .mv-input-group select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px #2563eb33;
+    }
+
+    .mv-status { font-size: 13px; font-weight: 400; }
+    .mv-status-ok { color: #166534; }
+    .mv-status-error { color: #b91c1c; }
+
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 980px){
+      .grid2{ grid-template-columns: 1fr; }
+    }
+
+    /* ✅ ÚJ: előnézet 2 oszlop (bal felhő, jobb panel) */
+    .previewGrid{
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    @media (max-width: 980px){
+      .previewGrid{ grid-template-columns: 1fr; }
+    }
+    .previewBoxTitle{
+      font-size: 12px;
+      color: #6b7280;
+      margin: 0 0 6px 2px;
+      font-weight: 700;
+    }
+
+    .mv-inline-actions{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items:center;
+      margin-top: 12px;
+    }
+    .mv-actions-spacer{ flex: 1; }
+    .mv-save-feedback{
+      min-height: 18px;
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      text-align:right;
+    }
+
+    /* ✅ Színek blokk: szebb layout */
+    .color-grid{
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .color-row{
+      display:flex;
+      gap: 12px;
+      align-items:center;
+      padding: 10px 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #f9fafb;
+    }
+    .color-meta{
+      flex: 1;
+      min-width: 160px;
+      display:flex;
+      flex-direction:column;
+      gap: 2px;
+    }
+    .color-title{
+      font-size: 13px;
+      font-weight: 800;
+      color: #111827;
+    }
+    .color-desc{
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .color-controls{
+      display:flex;
+      align-items:center;
+      gap: 8px;
+    }
+    .color-controls input[type="color"]{
+      width: 44px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      padding: 0;
+      background: white;
+      cursor: pointer;
+    }
+    .color-hex{
+      width: 120px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      background: white;
+    }
+    .color-hex:focus{
+      outline:none;
+      border-color:#2563eb;
+      box-shadow: 0 0 0 1px #2563eb33;
+    }
+
+    /* ===== Preview keret + scale (megjelenítéshez) ===== */
+    .previewWrap{
+      position: relative;
+      height: 520px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+    }
+    .previewStage{
+      position: absolute;
+      transform-origin: top left;
+    }
+    .previewStage iframe{
+      border: 0;
+      display: block;
+      background: #f8fafc;
+    }
+
+    /* ✅ Bal oldali felhő preview: ne legyen kattintható (iframe szinten) */
+    #preview-bubble{
+      pointer-events: none !important;
+    }
+    /* ✅ Jobb oldali panel preview: kattintható marad (scroll/input), a bezárást a widget.js tiltja */
+    #preview-panel{
+      pointer-events: auto !important;
+    }
+  </style>
+
+  <script>
+    // ✅ AUTH: admin token ellenőrzés
+    (function () {
+      const token = localStorage.getItem("mv_admin_token");
+      if (!token) {
+        window.location.href = "/admin-login.html";
+        return;
+      }
+      window.MV_ADMIN_TOKEN = token;
+    })();
+
+    async function adminFetch(url, options) {
+      const token = window.MV_ADMIN_TOKEN;
+      const opts = options || {};
+      const headers = Object.assign({}, opts.headers || {}, {
+        "x-admin-token": token
+      });
+      opts.headers = headers;
+
+      const res = await fetch(url, opts);
+
+      if (res.status === 401) {
+        localStorage.removeItem("mv_admin_token");
+        window.location.href = "/admin-login.html";
+        return res;
+      }
+      return res;
+    }
+
+    function qsGet(name){
+      try {
+        const u = new URL(window.location.href);
+        return u.searchParams.get(name);
+      } catch(_){ return null; }
+    }
+
+    function setStatus(el, text, ok){
+      if(!el) return;
+      el.textContent = text || "";
+      el.className = "mv-status mv-save-feedback";
+      if(!text) return;
+      if(ok === true) el.classList.add("mv-status-ok");
+      if(ok === false) el.classList.add("mv-status-error");
+    }
+
+    function isHexColor(s){
+      return typeof s === "string" && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s.trim());
+    }
+
+    function defaultConfig(siteKey){
+      return {
+        bubble_texts: [
+          "Dönts könnyebben.",
+          "Ne vacillálj! Segítek!",
+          "Ez a tuti. Nyomd meg!",
+          "Egy kattintás és kész!",
+          "Könnyebb így.",
+          "Ne vacillálj, megoldjuk.",
+          "Kattints, és kész.",
+          "Kíváncsi vagy? Katt!",
+          "Ez a segítség amire vártál!",
+          "Itt kezdődik a jó döntés.",
+        ],
+        panel_title: "Termékajánló",
+        panel_subtitle: "Pár adat alapján mutatok jó találatokat",
+        interest_placeholder: `pl. futás, tech, kávé, fotózás (${siteKey})`,
+        details_placeholder: "pl. szereti a praktikus dolgokat, kütyüket, sportot...",
+        theme: {
+          bubble_bg: "#3b82f6",
+          bubble_text: "#ffffff",
+          panel_bg: "#ffffff",
+          panel_text: "#0F172A",
+          button_bg: "#6366F1",
+          button_text: "#ffffff",
+          accent: "#6366F1",
+          header_grad_start: "#6366F1",
+          header_grad_end: "#3B82F6"
+        }
+      };
+    }
+
+    let partnersBySiteKey = new Map();
+    let catalogs = [];
+    let currentSiteKey = "";
+    let currentApiKey = "";
+    let currentConfig = null;
+
+    // ✅ 2 preview iframe
+    let previewBubbleReady = false;
+    let previewPanelReady = false;
+    let postTimer = null;
+
+    function postPreview(){
+      if(postTimer) clearTimeout(postTimer);
+      postTimer = setTimeout(() => {
+        const msg = { type: "MV_WIDGET_PREVIEW_CONFIG", config: currentConfig };
+
+        const fBubble = document.getElementById("preview-bubble");
+        if(previewBubbleReady && fBubble && fBubble.contentWindow){
+          try { fBubble.contentWindow.postMessage(msg, window.location.origin); } catch(_) {}
+        }
+
+        const fPanel = document.getElementById("preview-panel");
+        if(previewPanelReady && fPanel && fPanel.contentWindow){
+          try { fPanel.contentWindow.postMessage(msg, window.location.origin); } catch(_) {}
+        }
+      }, 60);
+    }
+
+    function rebuildIframes(){
+      const origin = window.location.origin;
+
+      const bubbleFrame = document.getElementById("preview-bubble");
+      const panelFrame = document.getElementById("preview-panel");
+      if(!bubbleFrame || !panelFrame) return;
+
+      // bal: csak felhő
+      const qs1 = new URLSearchParams();
+      qs1.set("site_key", currentSiteKey);
+      if(currentApiKey) qs1.set("api_key", currentApiKey);
+      qs1.set("mv_preview", "bubble");
+
+      // jobb: panel nyitva
+      const qs2 = new URLSearchParams();
+      qs2.set("site_key", currentSiteKey);
+      if(currentApiKey) qs2.set("api_key", currentApiKey);
+      qs2.set("mv_preview", "panel");
+
+      previewBubbleReady = false;
+      previewPanelReady = false;
+
+      bubbleFrame.src = `${origin}/demo.html?${qs1.toString()}`;
+      panelFrame.src = `${origin}/demo.html?${qs2.toString()}`;
+    }
+
+    async function loadPartnersAndCatalogs(){
+      const pres = await adminFetch("/api/admin/partners");
+      const pdata = pres && pres.ok ? await pres.json() : { partners: [] };
+      const ps = pdata.partners || [];
+      partnersBySiteKey = new Map();
+      ps.forEach(p => partnersBySiteKey.set(p.site_key, p));
+
+      const cres = await adminFetch("/api/admin/catalogs");
+      const cdata = cres && cres.ok ? await cres.json() : { catalogs: [] };
+      const raw = cdata.catalogs || [];
+      catalogs = raw.map((c) => ({
+        siteKey: c.siteKey || c.site_key || c.key || "ismeretlen",
+        productCount: typeof c.productCount === "number" ? c.productCount :
+                      typeof c.count === "number" ? c.count : 0
+      }));
+
+      const sel = document.getElementById("siteKeySelect");
+      sel.innerHTML = "";
+      catalogs.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.siteKey;
+        opt.textContent = `${c.siteKey} (${c.productCount} termék)`;
+        sel.appendChild(opt);
+      });
+
+      const fromUrl = qsGet("site_key");
+      const first = catalogs.length ? catalogs[0].siteKey : "";
+      currentSiteKey = (fromUrl && catalogs.some(x => x.siteKey === fromUrl)) ? fromUrl : first;
+
+      sel.value = currentSiteKey;
+      await loadConfigFor(currentSiteKey);
+    }
+
+    async function loadConfigFor(siteKey){
+      currentSiteKey = siteKey;
+
+      const p = partnersBySiteKey.get(siteKey);
+      currentApiKey = p && p.api_key ? String(p.api_key) : "";
+
+      setStatus(document.getElementById("saveStatus"), "Betöltés...", true);
+
+      let widget_config = null;
+      try {
+        const res = await adminFetch(`/api/admin/widget-config/${encodeURIComponent(siteKey)}`);
+        if(res && res.ok){
+          const data = await res.json();
+          widget_config = data.widget_config || null;
+        }
+      } catch(_) {}
+
+      currentConfig = widget_config || defaultConfig(siteKey);
+
+      fillFormFromConfig(currentConfig);
+      rebuildIframes();
+
+      setStatus(document.getElementById("saveStatus"), "Kész.", true);
+      setTimeout(() => setStatus(document.getElementById("saveStatus"), "", null), 800);
+    }
+
+    function fillFormFromConfig(cfg){
+      const t = cfg.theme || {};
+
+      document.getElementById("panelTitle").value = cfg.panel_title || "";
+      document.getElementById("panelSubtitle").value = cfg.panel_subtitle || "";
+      document.getElementById("interestPh").value = cfg.interest_placeholder || "";
+      document.getElementById("detailsPh").value = cfg.details_placeholder || "";
+
+      document.getElementById("bubbleTexts").value =
+        Array.isArray(cfg.bubble_texts) ? cfg.bubble_texts.join("\n") : "";
+
+      function setPair(colorId, hexId, val, fallback){
+        const v = isHexColor(val) ? val : fallback;
+        document.getElementById(colorId).value = v;
+        document.getElementById(hexId).value = v;
+      }
+
+      setPair("bubbleBg", "bubbleBgHex", t.bubble_bg, "#3b82f6");
+      setPair("bubbleText", "bubbleTextHex", t.bubble_text, "#ffffff");
+      setPair("panelBg", "panelBgHex", t.panel_bg, "#ffffff");
+      setPair("panelText", "panelTextHex", t.panel_text, "#0F172A");
+      setPair("buttonBg", "buttonBgHex", t.button_bg, "#6366F1");
+      setPair("buttonText", "buttonTextHex", t.button_text, "#ffffff");
+      setPair("accent", "accentHex", t.accent, "#6366F1");
+      setPair("headerStart", "headerStartHex", t.header_grad_start, "#6366F1");
+      setPair("headerEnd", "headerEndHex", t.header_grad_end, "#3B82F6");
+    }
+
+    function readConfigFromForm(){
+      const cfg = {
+        bubble_texts: (document.getElementById("bubbleTexts").value || "")
+          .split("\n").map(s => s.trim()).filter(Boolean),
+        panel_title: document.getElementById("panelTitle").value || "",
+        panel_subtitle: document.getElementById("panelSubtitle").value || "",
+        interest_placeholder: document.getElementById("interestPh").value || "",
+        details_placeholder: document.getElementById("detailsPh").value || "",
+        theme: {
+          bubble_bg: document.getElementById("bubbleBgHex").value,
+          bubble_text: document.getElementById("bubbleTextHex").value,
+          panel_bg: document.getElementById("panelBgHex").value,
+          panel_text: document.getElementById("panelTextHex").value,
+          button_bg: document.getElementById("buttonBgHex").value,
+          button_text: document.getElementById("buttonTextHex").value,
+          accent: document.getElementById("accentHex").value,
+          header_grad_start: document.getElementById("headerStartHex").value,
+          header_grad_end: document.getElementById("headerEndHex").value,
+        }
+      };
+      return cfg;
+    }
+
+    function hookColorPair(colorId, hexId){
+      const c = document.getElementById(colorId);
+      const h = document.getElementById(hexId);
+
+      c.addEventListener("input", () => {
+        h.value = c.value;
+        currentConfig = readConfigFromForm();
+        postPreview();
+      });
+
+      h.addEventListener("input", () => {
+        if(isHexColor(h.value)){
+          c.value = h.value.trim();
+          currentConfig = readConfigFromForm();
+          postPreview();
+        }
+      });
+    }
+
+    function hookLive(){
+      const ids = ["panelTitle","panelSubtitle","interestPh","detailsPh","bubbleTexts"];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.addEventListener("input", () => {
+          currentConfig = readConfigFromForm();
+          postPreview();
+        });
+      });
+
+      hookColorPair("bubbleBg","bubbleBgHex");
+      hookColorPair("bubbleText","bubbleTextHex");
+      hookColorPair("panelBg","panelBgHex");
+      hookColorPair("panelText","panelTextHex");
+      hookColorPair("buttonBg","buttonBgHex");
+      hookColorPair("buttonText","buttonTextHex");
+      hookColorPair("accent","accentHex");
+      hookColorPair("headerStart","headerStartHex");
+      hookColorPair("headerEnd","headerEndHex");
+    }
+
+    async function saveConfig(){
+      const statusEl = document.getElementById("saveStatus");
+      try{
+        setStatus(statusEl, "Mentés...", true);
+        const body = { widget_config: readConfigFromForm() };
+
+        const res = await adminFetch(`/api/admin/widget-config/${encodeURIComponent(currentSiteKey)}`,{
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify(body)
+        });
+
+        if(!res || !res.ok){
+          const err = await (res ? res.json().catch(() => ({})) : Promise.resolve({}));
+          throw new Error(err.error || "Ismeretlen hiba");
+        }
+
+        setStatus(statusEl, "Mentve ✅", true);
+        setTimeout(() => setStatus(statusEl, "", null), 2200);
+      }catch(e){
+        console.error(e);
+        setStatus(statusEl, "Hiba mentésnél: " + e.message, false);
+      }
+    }
+
+    async function resetConfig(){
+      const statusEl = document.getElementById("saveStatus");
+      const ok = confirm("Biztosan visszaállítod alapra? (A widget_config törlődik, és a widget default designra áll.)");
+      if(!ok) return;
+
+      try{
+        setStatus(statusEl, "Visszaállítás...", true);
+
+        const res = await adminFetch(`/api/admin/widget-config/${encodeURIComponent(currentSiteKey)}/reset`,{
+          method:"POST"
+        });
+
+        if(!res || !res.ok){
+          const err = await (res ? res.json().catch(() => ({})) : Promise.resolve({}));
+          throw new Error(err.error || "Ismeretlen hiba");
+        }
+
+        await loadConfigFor(currentSiteKey);
+        setStatus(statusEl, "Visszaállítva ✅", true);
+        setTimeout(() => setStatus(statusEl, "", null), 2200);
+      }catch(e){
+        console.error(e);
+        setStatus(statusEl, "Hiba visszaállításnál: " + e.message, false);
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", async () => {
+      const bubbleFrame = document.getElementById("preview-bubble");
+      const panelFrame  = document.getElementById("preview-panel");
+
+      bubbleFrame.addEventListener("load", () => {
+        previewBubbleReady = true;
+        postPreview();
+      });
+
+      panelFrame.addEventListener("load", () => {
+        previewPanelReady = true;
+        postPreview();
+      });
+
+      document.getElementById("backBtn").addEventListener("click", () => {
+        window.location.href = "/admin.html";
+      });
+
+      document.getElementById("siteKeySelect").addEventListener("change", async (e) => {
+        await loadConfigFor(e.target.value);
+      });
+
+      document.getElementById("saveBtn").addEventListener("click", saveConfig);
+      document.getElementById("resetBtn").addEventListener("click", resetConfig);
+
+      hookLive();
+      await loadPartnersAndCatalogs();
+    });
+  </script>
+</head>
+<body>
+  <div class="mv-container">
+    <div class="mv-topbar">
+      <div>
+        <h1>Widget szerkesztő</h1>
+        <div class="mv-small">Katalógusonként állítható felhő/panel színek és szövegek, élő előnézettel.</div>
+      </div>
+      <button id="backBtn" class="mv-btn mv-btn-secondary">Vissza az adminhoz</button>
+    </div>
+
+    <div class="mv-card">
+      <div class="mv-input-row">
+        <div class="mv-input-group" style="max-width: 380px;">
+          <label>Katalógus kiválasztása</label>
+          <select id="siteKeySelect"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="mv-card">
+        <h2>Szövegek</h2>
+
+        <div class="mv-input-row">
+          <div class="mv-input-group">
+            <label>Panel cím</label>
+            <input id="panelTitle" type="text" />
+          </div>
+          <div class="mv-input-group">
+            <label>Panel alcím</label>
+            <input id="panelSubtitle" type="text" />
+          </div>
+        </div>
+
+        <div class="mv-input-row">
+          <div class="mv-input-group">
+            <label>Érdeklődés placeholder</label>
+            <input id="interestPh" type="text" />
+          </div>
+        </div>
+
+        <div class="mv-input-row">
+          <div class="mv-input-group">
+            <label>Részletek (textarea) placeholder</label>
+            <input id="detailsPh" type="text" />
+          </div>
+        </div>
+
+        <div class="mv-input-row">
+          <div class="mv-input-group">
+            <label>Felhő szövegek (1 sor = 1 szöveg, automatikusan váltogat)</label>
+            <textarea id="bubbleTexts"></textarea>
+          </div>
+        </div>
+
+        <div class="mv-inline-actions">
+          <button id="saveBtn" class="mv-btn mv-btn-primary">Mentés</button>
+          <button id="resetBtn" class="mv-btn mv-btn-danger">Vissza alapra</button>
+          <div class="mv-actions-spacer"></div>
+          <div id="saveStatus" class="mv-status mv-save-feedback"></div>
+        </div>
+      </div>
+
+      <div class="mv-card">
+        <h2>Színek</h2>
+        <div class="mv-small">Színválasztó vagy HEX mező. HEX akkor frissít, ha érvényes (pl. <b>#1d4ed8</b>).</div>
+
+        <div class="color-grid">
+          <div class="color-row">
+            <div class="color-meta">
+              <div class="color-title">Felhő háttér</div>
+              <div class="color-desc">A felhő színátmenetének alapja</div>
+            </div>
+            <div class="color-controls">
+              <input id="bubbleBg" type="color" value="#3b82f6" />
+              <input id="bubbleBgHex" class="color-hex" type="text" value="#3b82f6" />
+            </div>
+          </div>
+
+          <div class="color-row">
+            <div class="color-meta">
+              <div class="color-title">Felhő szöveg</div>
+              <div class="color-desc">A felhőben megjelenő szöveg színe</div>
+            </div>
+            <div class="color-controls">
+              <input id="bubbleText" type="color" value="#ffffff" />
+              <input id="bubbleTextHex" class="color-hex" type="text" value="#ffffff" />
+            </div>
+          </div>
+
+          <div class="color-row">
+            <div class="color-meta">
+              <div class="color-title">Panel háttér</div>
+              <div class="color-desc">A panel (kártya) alap háttere</div>
+            </div>
+            <div class="color-controls">
+              <input id="panelBg" type="color" value="#ffffff" />
+              <input id="panelBgHex" class="color-hex" type="text" value="#ffffff" />
+            </div>
+          </div>
+
+          <div class="color-row">
+            <div class="color-meta">
+              <div class="color-title">Panel szöveg</div>
+              <div class="color-desc">Panelen belüli szövegek színe</div>
+            </div>
+            <div class="color-controls">
+              <input id="panelText" type="color" value="#0F172A" />
+              <input id="panelTextHex" class="color-hex" type="text" value="#0F172A" />
+            </div>
+          </div>
+
+          <div class="color-row">
+            <div class="color-meta">
+              <div class="color-title">Gomb háttér</div>
+              <div class="color-desc">Ajánlatot kérek gomb színátmenetének alapja</div>
+            </div>
+            <div class="color-controls">
+              <input id="buttonBg" type="color" value="#6366F1" />
+              <input id="buttonBgHex" class="color-hex" type="text" value="#6366F1" />
+            </div>
+          </div>
+
+          <div class="color-row">
+            <div class="color-meta">
+              <div class="color-title">Gomb szöveg</div>
+              <div class="color-desc">Gombon lévő felirat színe</div>
+            </div>
+            <div class="color-controls">
+              <input id="buttonText" type="color" value="#ffffff" />
+              <input id="buttonTextHex" class="color-hex" type="text" value="#ffffff" />
+            </div>
+          </div>
+
+          <div class="color-row">
+            <div class="color-meta">
+              <div class="color-title">Accent</div>
+              <div class="color-desc">Kiemelések, fókusz keret, ár színek</div>
+            </div>
+            <div class="color-controls">
+              <input id="accent" type="color" value="#6366F1" />
+              <input id="accentHex" class="color-hex" type="text" value="#6366F1" />
+            </div>
+          </div>
+
+          <div class="color-row">
+            <div class="color-meta">
+              <div class="color-title">Header gradient – start</div>
+              <div class="color-desc">Panel fejléc átmenet (bal felső)</div>
+            </div>
+            <div class="color-controls">
+              <input id="headerStart" type="color" value="#6366F1" />
+              <input id="headerStartHex" class="color-hex" type="text" value="#6366F1" />
+            </div>
+          </div>
+
+          <div class="color-row">
+            <div class="color-meta">
+              <div class="color-title">Header gradient – end</div>
+              <div class="color-desc">Panel fejléc átmenet (jobb alsó)</div>
+            </div>
+            <div class="color-controls">
+              <input id="headerEnd" type="color" value="#3B82F6" />
+              <input id="headerEndHex" class="color-hex" type="text" value="#3B82F6" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mv-card">
+      <h2>Előnézet</h2>
+      <div class="mv-small">
+        Bal oldalt a <b>felhő</b>, jobb oldalt a <b>panel mindig nyitva</b>. A szerkesztő mentés nélkül is küldi a configot.
+      </div>
+
+      <div class="previewGrid">
+        <div>
+          <div class="previewBoxTitle">Felhő előnézet</div>
+          <div class="previewWrap" data-vw="520" data-vh="240">
+            <div class="previewStage">
+              <iframe id="preview-bubble" title="Bubble preview" scrolling="no"></iframe>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="previewBoxTitle">Panel előnézet (nyitva)</div>
+          <div class="previewWrap" data-vw="1200" data-vh="760">
+            <div class="previewStage">
+              <iframe id="preview-panel" title="Panel preview" scrolling="no"></iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function fitPreview(wrap){
+      const stage = wrap.querySelector(".previewStage");
+      const iframe = stage.querySelector("iframe");
+
+      const vw = Number(wrap.dataset.vw || 1200);
+      const vh = Number(wrap.dataset.vh || 760);
+
+      iframe.style.width = vw + "px";
+      iframe.style.height = vh + "px";
+
+      const W = wrap.clientWidth;
+      const H = wrap.clientHeight;
+
+      const scale = Math.min(W / vw, H / vh);
+
+      const left = Math.max(0, (W - vw * scale) / 2);
+      const top  = Math.max(0, (H - vh * scale) / 2);
+
+      stage.style.left = left + "px";
+      stage.style.top = top + "px";
+      stage.style.transform = `scale(${scale})`;
+    }
+
+    function fitAll(){
+      document.querySelectorAll(".previewWrap").forEach(fitPreview);
+    }
+
+    const ro = new ResizeObserver(() => fitAll());
+    window.addEventListener("load", () => {
+      document.querySelectorAll(".previewWrap").forEach(w => ro.observe(w));
+      fitAll();
+    });
+    window.addEventListener("resize", fitAll);
+  </script>
+</body>
+</html>

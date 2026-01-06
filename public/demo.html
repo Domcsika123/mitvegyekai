@@ -19,9 +19,29 @@
       max-width: 600px;
     }
     code { background: #eef2ff; padding: 2px 6px; border-radius: 6px; }
+
+        /* Preview módban ne látszódjon a demo doboz */
+    body.mv-preview { padding: 0; overflow: hidden; }
+    body.mv-preview h1, body.mv-preview .box { display: none; }
+
+    body.mv-preview {
+      padding: 0 !important;
+      overflow: hidden !important;
+    }
+    body.mv-preview h1,
+    body.mv-preview .box {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
+  <script>
+    (function(){
+      var p = new URLSearchParams(location.search);
+      if (p.get("mv_preview")) document.body.classList.add("mv-preview");
+    })();
+  </script>
+
   <h1>MitVegyek.ai – Demo widget</h1>
 
   <div class="box">

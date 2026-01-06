@@ -9,8 +9,12 @@
     } catch (e) {
       url = null;
     }
+
     var urlSiteKey = url ? url.searchParams.get("site_key") : null;
     var urlApiKey = url ? url.searchParams.get("api_key") : null;
+
+    // ✅ preview: "bubble" | "panel" | null
+    var urlPreview = url ? url.searchParams.get("mv_preview") : null;
 
     var script =
       document.currentScript ||
@@ -26,14 +30,51 @@
     var siteKey = urlSiteKey || attrSiteKey || "default";
     var apiKey = urlApiKey || attrApiKey || "";
 
-    return { siteKey: siteKey, apiKey: apiKey };
+    return {
+      siteKey: siteKey,
+      apiKey: apiKey,
+      preview: (urlPreview || "").trim().toLowerCase(),
+    };
   }
 
   var MV_AUTH = mvGetWidgetAuth();
+  function mvRefreshAuth() {
+    MV_AUTH = mvGetWidgetAuth();
+  }
+
+  /* ===================== PREVIEW MODE (WIDGET EDITOR IFRAME) ===================== */
+
+  function getPreviewKind() {
+    try {
+      if (window.MV_WIDGET_PREVIEW === true) return "panel";
+
+      var p = (MV_AUTH && MV_AUTH.preview) ? String(MV_AUTH.preview) : "";
+      p = p.trim().toLowerCase();
+
+      if (p === "bubble" || p === "panel") return p;
+
+      if (p === "1" || p === "true") return "panel";
+
+      return "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function isPreviewMode() {
+    return !!getPreviewKind();
+  }
+
+  var MV_PREVIEW_MODE = isPreviewMode();
 
   /* ===================== PARTNER STATUS (HIDE WIDGET IF BLOCKED/DELETED) ===================== */
 
   async function checkPartnerAllowed() {
+    mvRefreshAuth();
+
+    // preview módban ne blokkoljunk CORS/allowed_domains miatt
+    if (isPreviewMode()) return true;
+
     if (!MV_AUTH.apiKey && (MV_AUTH.siteKey === "default" || !MV_AUTH.siteKey)) {
       return true;
     }
@@ -60,9 +101,108 @@
     }
   }
 
-  /* ===================== STATIC BUBBLE TEXT ===================== */
+  /* ===================== DEFAULT CONFIG (DESIGN MARAD) ===================== */
 
-  var MV_STATIC_BUBBLE_TEXT = "Ne vacillálj! Segítek!";
+  var MV_DEFAULT_CONFIG = {
+    bubble_texts: [
+      "Ez a tuti. Nyomd meg!",
+      "Dönts könnyebben.",
+      "Ne vacillálj! Segítek!",
+      "Ez a tuti. Nyomd meg!",
+      "Egy kattintás és kész!",
+      "Könnyebb így.",
+      "Ne vacillálj, megoldjuk.",
+      "Kattints, és kész.",
+      "Kíváncsi vagy? Katt!",
+      "Ez a segítség amire vártál!",
+      "Itt kezdődik a jó döntés.",
+    ],
+    panel_title: "Termékajánló",
+    panel_subtitle: "Pár adat alapján mutatok jó találatokat",
+    interest_placeholder: "pl. futás, tech, kávé, fotózás",
+    details_placeholder: "pl. szereti a praktikus dolgokat, kütyüket, sportot...",
+    theme: {
+      bubble_bg: "#3b82f6",
+      bubble_text: "#ffffff",
+      panel_bg: "#ffffff",
+      panel_text: "#0F172A",
+      button_bg: "#6366F1",
+      button_text: "#ffffff",
+      accent: "#6366F1",
+      header_grad_start: "#6366F1",
+      header_grad_end: "#3B82F6",
+    },
+  };
+
+  var MV_CONFIG = JSON.parse(JSON.stringify(MV_DEFAULT_CONFIG));
+
+  function safeStr(v, fallback) {
+    if (v === null || v === undefined) return fallback;
+    var s = String(v);
+    return s.length ? s : fallback;
+  }
+
+  function isHexColor(s) {
+    return typeof s === "string" && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s.trim());
+  }
+
+  function mergeConfig(raw) {
+    if (!raw || typeof raw !== "object") return;
+
+    if (Array.isArray(raw.bubble_texts)) {
+      var arr = raw.bubble_texts
+        .map(function (x) { return String(x || "").trim(); })
+        .filter(Boolean);
+      if (arr.length) MV_CONFIG.bubble_texts = arr;
+    }
+
+    MV_CONFIG.panel_title = safeStr(raw.panel_title, MV_CONFIG.panel_title);
+    MV_CONFIG.panel_subtitle = safeStr(raw.panel_subtitle, MV_CONFIG.panel_subtitle);
+    MV_CONFIG.interest_placeholder = safeStr(raw.interest_placeholder, MV_CONFIG.interest_placeholder);
+    MV_CONFIG.details_placeholder = safeStr(raw.details_placeholder, MV_CONFIG.details_placeholder);
+
+    var t = raw.theme || {};
+    MV_CONFIG.theme = MV_CONFIG.theme || {};
+
+    var keys = [
+      "bubble_bg",
+      "bubble_text",
+      "panel_bg",
+      "panel_text",
+      "button_bg",
+      "button_text",
+      "accent",
+      "header_grad_start",
+      "header_grad_end"
+    ];
+
+    keys.forEach(function (k) {
+      if (isHexColor(t[k])) MV_CONFIG.theme[k] = t[k].trim();
+    });
+  }
+
+  /* ===================== LOAD CONFIG (PUBLIC) ===================== */
+
+  async function fetchPartnerConfig() {
+    if (isPreviewMode()) return null;
+
+    try {
+      var url = "/api/partner-config?site_key=" + encodeURIComponent(MV_AUTH.siteKey || "default");
+      var resp = await fetch(url, {
+        method: "GET",
+        headers: { "x-mv-api-key": MV_AUTH.apiKey || "" },
+      });
+      if (!resp.ok) return null;
+
+      var data = null;
+      try { data = await resp.json(); } catch (_) { data = null; }
+      if (!data || data.ok !== true) return null;
+
+      return data.widget_config || null;
+    } catch (e) {
+      return null;
+    }
+  }
 
   /* ===================== MOBILE FULLSCREEN HELPERS ===================== */
 
@@ -94,11 +234,166 @@
     }
   }
 
+  /* ===================== THEME APPLY ===================== */
+
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+  function hexToRgb(hex) {
+    var h = String(hex || "").trim();
+    if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(h)) return null;
+    if (h.length === 4) {
+      var r = parseInt(h[1] + h[1], 16);
+      var g = parseInt(h[2] + h[2], 16);
+      var b = parseInt(h[3] + h[3], 16);
+      return { r: r, g: g, b: b };
+    }
+    return {
+      r: parseInt(h.slice(1, 3), 16),
+      g: parseInt(h.slice(3, 5), 16),
+      b: parseInt(h.slice(5, 7), 16),
+    };
+  }
+
+  function rgbToHex(r, g, b) {
+    function toHex(x) {
+      var s = clamp(Math.round(x), 0, 255).toString(16);
+      return s.length === 1 ? "0" + s : s;
+    }
+    return "#" + toHex(r) + toHex(g) + toHex(b);
+  }
+
+  function lighten(hex, amount) {
+    var c = hexToRgb(hex);
+    if (!c) return hex;
+    var a = clamp(amount, -1, 1);
+    var r = c.r + (255 - c.r) * a;
+    var g = c.g + (255 - c.g) * a;
+    var b = c.b + (255 - c.b) * a;
+    return rgbToHex(r, g, b);
+  }
+
+  function ensureThemeVars() {
+    var styleId = "mv-widget-theme-vars";
+    var el = document.getElementById(styleId);
+    if (el) return el;
+
+    el = document.createElement("style");
+    el.id = styleId;
+    el.type = "text/css";
+    document.head.appendChild(el);
+    return el;
+  }
+
+  function applyTheme() {
+    var t = MV_CONFIG.theme || MV_DEFAULT_CONFIG.theme;
+
+    var bubbleBase = t.bubble_bg || "#3b82f6";
+    var bubbleMid = lighten(bubbleBase, 0.22);
+
+    var headerStart = t.header_grad_start || t.button_bg || "#6366F1";
+    var headerEnd = t.header_grad_end || "#3B82F6";
+
+    var buttonBase = t.button_bg || "#6366F1";
+    var buttonEnd = lighten(buttonBase, 0.10);
+
+    var css = `
+      :root{
+        --mv-bubble-bg:${bubbleBase};
+        --mv-bubble-bg2:${bubbleMid};
+        --mv-bubble-text:${t.bubble_text || "#ffffff"};
+
+        --mv-panel-bg:${t.panel_bg || "#ffffff"};
+        --mv-panel-text:${t.panel_text || "#0F172A"};
+
+        --mv-header-grad-start:${headerStart};
+        --mv-header-grad-end:${headerEnd};
+
+        --mv-button-grad-start:${buttonBase};
+        --mv-button-grad-end:${buttonEnd};
+        --mv-button-text:${t.button_text || "#ffffff"};
+
+        --mv-accent:${t.accent || buttonBase};
+      }
+    `;
+
+    var styleEl = ensureThemeVars();
+    styleEl.textContent = css;
+
+    try {
+      var root = document.getElementById("mv-widget-root");
+      if (!root) return;
+      var stops = root.querySelectorAll("#cloudGradient stop");
+      if (stops && stops.length >= 3) {
+        stops[0].setAttribute("stop-color", bubbleBase);
+        stops[1].setAttribute("stop-color", bubbleMid);
+        stops[2].setAttribute("stop-color", bubbleBase);
+      }
+      var bt = root.querySelector(".mv-widget-bubble-text");
+      if (bt) bt.style.color = "var(--mv-bubble-text)";
+    } catch (_) {}
+  }
+
+  function applyTextsToDom() {
+    try {
+      var span = document.querySelector("#mv-widget-root .mv-widget-bubble-text span");
+      if (span) span.textContent = getCurrentBubbleText();
+    } catch (_) {}
+
+    var title = document.querySelector("#mv-widget-panel .mv-widget-panel-title");
+    if (title) title.textContent = safeStr(MV_CONFIG.panel_title, "Termékajánló");
+
+    var sub = document.querySelector("#mv-widget-panel .mv-widget-panel-subtitle");
+    if (sub) sub.textContent = safeStr(MV_CONFIG.panel_subtitle, "");
+
+    var interest = document.getElementById("mv-input-interests");
+    if (interest) interest.setAttribute("placeholder", safeStr(MV_CONFIG.interest_placeholder, ""));
+
+    var details = document.getElementById("mv-input-free-text");
+    if (details) details.setAttribute("placeholder", safeStr(MV_CONFIG.details_placeholder, ""));
+  }
+
+  function applyConfig(raw) {
+    MV_CONFIG = JSON.parse(JSON.stringify(MV_DEFAULT_CONFIG));
+    mergeConfig(raw);
+
+    if (isPreviewMode()) {
+      var arr = Array.isArray(MV_CONFIG.bubble_texts) ? MV_CONFIG.bubble_texts : [];
+      MV_BUBBLE_PICKED_TEXT = (arr && arr.length) ? String(arr[0]) : null;
+    } else {
+      MV_BUBBLE_PICKED_TEXT = null;
+    }
+
+    applyTheme();
+    applyTextsToDom();
+  }
+
+  /* ===================== STATIC BUBBLE TEXT (ONLY ON PAGE LOAD) ===================== */
+
+  var MV_BUBBLE_PICKED_TEXT = null;
+
+  function pickBubbleTextOnce() {
+    var arr = Array.isArray(MV_CONFIG.bubble_texts) ? MV_CONFIG.bubble_texts : MV_DEFAULT_CONFIG.bubble_texts;
+    if (!arr || !arr.length) arr = ["Ne vacillálj! Segítek!"];
+
+    if (MV_BUBBLE_PICKED_TEXT === null) {
+      var idx = Math.floor(Math.random() * arr.length);
+      MV_BUBBLE_PICKED_TEXT = arr[idx] || arr[0] || "Ne vacillálj! Segítek!";
+    }
+    return MV_BUBBLE_PICKED_TEXT;
+  }
+
+  function getCurrentBubbleText() {
+    if (isPreviewMode() && MV_BUBBLE_PICKED_TEXT !== null) return MV_BUBBLE_PICKED_TEXT;
+    return pickBubbleTextOnce();
+  }
+
+  function startBubbleRotation() {}
+  function stopBubbleRotation() {}
+
   /* ===================== STYLES ===================== */
 
   function injectStyles() {
-    // verziózott styleId, hogy biztos felülírja a cache-ben maradt korábbit
-    var styleId = "mv-widget-style-v8";
+    var styleId = "mv-widget-style-v10";
     if (document.getElementById(styleId)) return;
 
     var css = `
@@ -159,7 +454,6 @@
       .mv-widget-cloud-path { transition: filter 0.3s ease; }
       .mv-widget-bubble-btn:hover .mv-widget-cloud-path { filter: brightness(1.12); }
 
-      /* >>> FELHŐ SZÖVEG FIX: 2 SOR, NINCS ... <<< */
       .mv-widget-bubble-text{
         position:absolute;
         inset:0;
@@ -167,7 +461,7 @@
         align-items:center;
         justify-content:center;
 
-        transform: translateY(-8px);
+        transform: translateY( 2px) translateX(24px);
 
         padding: 48px 110px;
         box-sizing: border-box;
@@ -175,7 +469,7 @@
         pointer-events:none;
         user-select:none;
 
-        color:#fff;
+        color: var(--mv-bubble-text, #fff);
         font-weight:900;
         font-size: 30px;
         line-height: 1.1;
@@ -186,12 +480,12 @@
       .mv-widget-bubble-text span{
         display: -webkit-box;
         -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;     /* max 2 sor */
+        -webkit-line-clamp: 2;
         overflow: hidden;
 
         max-width: 520px;
-        white-space: normal;       /* törhet sorba */
-        text-overflow: clip;       /* nincs ... */
+        white-space: normal;
+        text-overflow: clip;
         word-break: break-word;
         hyphens: auto;
       }
@@ -209,7 +503,7 @@
         bottom: 86px;
         width: 420px;
         max-width: calc(100vw - 40px);
-        background: #FFFFFF;
+        background: var(--mv-panel-bg, #FFFFFF);
         border-radius: 24px;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         display: none;
@@ -217,10 +511,11 @@
         overflow: hidden;
         animation: slideUp 0.4s ease;
         max-height: min(640px, calc(100vh - 120px));
+        color: var(--mv-panel-text, #0F172A);
       }
 
       .mv-widget-panel-header {
-        background: linear-gradient(135deg, #6366F1 0%, #3B82F6 100%);
+        background: linear-gradient(135deg, var(--mv-header-grad-start, #6366F1) 0%, var(--mv-header-grad-end, #3B82F6) 100%);
         padding: 18px 20px;
         display: flex;
         align-items: center;
@@ -288,7 +583,13 @@
         align-items: center;
         gap: 6px;
       }
-      .mv-widget-section-label::before { content: ''; width: 3px; height: 12px; background: linear-gradient(135deg, #6366F1, #3B82F6); border-radius: 2px; }
+      .mv-widget-section-label::before {
+        content: '';
+        width: 3px;
+        height: 12px;
+        background: linear-gradient(135deg, var(--mv-accent, #6366F1), var(--mv-header-grad-end, #3B82F6));
+        border-radius: 2px;
+      }
 
       .mv-widget-input-group { display: flex; gap: 10px; margin-bottom: 8px; }
       .mv-widget-form-field { flex: 1; display: flex; flex-direction: column; }
@@ -310,14 +611,13 @@
 
       .mv-widget-input:focus, .mv-widget-select:focus, .mv-widget-textarea:focus {
         outline: none;
-        border-color: #6366F1;
+        border-color: var(--mv-accent, #6366F1);
         box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
         transform: translateY(-1px);
       }
 
       .mv-widget-textarea { resize: vertical; min-height: 54px; line-height: 1.45; }
 
-      /* AJÁNLATOK CÍM: ZÖLD, STATIKUS */
       .mv-widget-results-title {
         display: none;
         color: #166534;
@@ -344,7 +644,11 @@
         transition: all 0.2s ease;
         align-items: start;
       }
-      .mv-widget-result-item:hover { border-color: #6366F1; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15); transform: translateY(-2px); }
+      .mv-widget-result-item:hover {
+        border-color: var(--mv-accent, #6366F1);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+        transform: translateY(-2px);
+      }
 
       .mv-widget-result-media {
         width: 72px; height: 72px; border-radius: 12px;
@@ -352,11 +656,11 @@
         overflow: hidden; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
       }
       .mv-widget-result-image { width: 100%; height: 100%; object-fit: cover; display: block; }
-      .mv-widget-result-placeholder { font-weight: 900; color: #6366F1; font-size: 18px; }
+      .mv-widget-result-placeholder { font-weight: 900; color: var(--mv-accent, #6366F1); font-size: 18px; }
       .mv-widget-result-content { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
       .mv-widget-result-topline { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
       .mv-widget-result-name { font-size: 14px; font-weight: 900; color: #0F172A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .mv-widget-result-price { font-size: 13px; color: #6366F1; font-weight: 800; flex-shrink: 0; }
+      .mv-widget-result-price { font-size: 13px; color: var(--mv-accent, #6366F1); font-weight: 800; flex-shrink: 0; }
 
       .mv-widget-result-reason {
         font-size: 11px; color: #64748b; line-height: 1.4; font-weight: 700;
@@ -367,7 +671,7 @@
         margin-top: 4px; align-self: flex-start;
         border-radius: 10px; border: none;
         background: rgba(99, 102, 241, 0.12);
-        color: #6366F1;
+        color: var(--mv-accent, #6366F1);
         font-size: 12px;
         padding: 7px 12px;
         cursor: pointer;
@@ -387,10 +691,10 @@
       .mv-widget-submit-btn {
         width: 100%;
         padding: 14px;
-        background: linear-gradient(135deg, #6366F1 0%, #3B82F6 100%);
+        background: linear-gradient(135deg, var(--mv-button-grad-start, #6366F1) 0%, var(--mv-button-grad-end, #3B82F6) 100%);
         border: none;
         border-radius: 14px;
-        color: white;
+        color: var(--mv-button-text, #fff);
         font-size: 15px;
         font-weight: 900;
         cursor: pointer;
@@ -428,12 +732,10 @@
           bottom: calc(8px + env(safe-area-inset-bottom)) !important;
         }
 
-        /* mobilon a felhő nagy marad */
         .mv-widget-bubble-btn{
           --mv-scale: 0.75 !important;
         }
 
-        /* mobilon a felhő szöveg legyen picit nagyobb, de továbbra is 2 sor */
         .mv-widget-bubble-text{
           font-size: 40px !important;
           padding: 54px 120px !important;
@@ -551,6 +853,41 @@
         .mv-widget-help-text { font-size: 26px !important; }
         .mv-widget-status { font-size: 30px !important; padding: 22px 22px !important; border-radius: 20px !important; }
       }
+
+      /* ===== PREVIEW MÓD (csak szerkesztőhöz) ===== */
+
+      /* bubble preview: középre, ne lebegjen, ne legyen kattintható */
+      .mv-preview-bubble .mv-widget-root{
+        position: relative;
+        left: 0; top: 0; right: auto; bottom: auto;
+        width: 100vw; height: 100vh;
+      }
+      .mv-preview-bubble .mv-widget-panel{ display:none !important; }
+      .mv-preview-bubble .mv-widget-bubble-btn{
+        left: 50%;
+        top: 50%;
+        right: auto;
+        bottom: auto;
+        transform-origin: center;
+        animation: none !important;
+        transform: translate(-50%, -50%) scale(var(--mv-scale)) !important;
+
+        pointer-events: none !important;
+        cursor: default !important;
+      }
+      .mv-preview-bubble .mv-widget-bubble-btn:hover{
+        transform: translate(-50%, -50%) scale(var(--mv-scale)) !important;
+      }
+
+      /* panel preview: SEMMI átméretezés! csak: felhő rejtve, close tiltva */
+      .mv-preview-panel .mv-widget-bubble-btn{ display:none !important; }
+      .mv-preview-panel .mv-widget-panel{ display:flex !important; }
+
+      .mv-preview-panel .mv-widget-close-btn{
+        pointer-events: none !important;
+        cursor: default !important;
+        opacity: 0.85;
+      }
     `;
 
     var style = document.createElement("style");
@@ -574,6 +911,7 @@
     if (document.getElementById("mv-widget-root")) {
       MV_STATE.root = document.getElementById("mv-widget-root");
       MV_STATE.bubbleBtn = MV_STATE.root.querySelector(".mv-widget-bubble-btn");
+      applyTextsToDom();
       return;
     }
 
@@ -592,9 +930,9 @@
            aria-hidden="true">
         <defs>
           <linearGradient id="cloudGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#3b82f6"/>
-            <stop offset="50%" stop-color="#60a5fa"/>
-            <stop offset="100%" stop-color="#3b82f6"/>
+            <stop offset="0%" stop-color="${(MV_CONFIG.theme && MV_CONFIG.theme.bubble_bg) || "#3b82f6"}"/>
+            <stop offset="50%" stop-color="${(MV_CONFIG.theme && lighten(MV_CONFIG.theme.bubble_bg || "#3b82f6", 0.22)) || "#60a5fa"}"/>
+            <stop offset="100%" stop-color="${(MV_CONFIG.theme && MV_CONFIG.theme.bubble_bg) || "#3b82f6"}"/>
           </linearGradient>
         </defs>
         <path class="mv-widget-cloud-path" fill="url(#cloudGradient)"
@@ -612,7 +950,7 @@
       </svg>
 
       <div class="mv-widget-bubble-text">
-        <span>${MV_STATIC_BUBBLE_TEXT}</span>
+        <span>${getCurrentBubbleText()}</span>
       </div>
 
       <div class="mv-widget-sparkle mv-widget-sparkle-1"></div>
@@ -626,8 +964,14 @@
     MV_STATE.bubbleBtn = bubbleBtn;
 
     bubbleBtn.addEventListener("click", function () {
+      // preview bubble módban sose nyíljon meg
+      if (getPreviewKind() === "bubble") return;
       openPanel();
     });
+
+    applyTheme();
+    applyTextsToDom();
+    startBubbleRotation();
   }
 
   /* ===================== DOM: PANEL (LAZY) ===================== */
@@ -646,13 +990,19 @@
     var headerContent = document.createElement("div");
     headerContent.className = "mv-widget-header-content";
     headerContent.innerHTML =
-      '<div class="mv-widget-panel-title">Termékajánló</div>' +
-      '<div class="mv-widget-panel-subtitle">Pár adat alapján mutatok jó találatokat</div>';
+      '<div class="mv-widget-panel-title">' + safeStr(MV_CONFIG.panel_title, "Termékajánló") + "</div>" +
+      '<div class="mv-widget-panel-subtitle">' + safeStr(MV_CONFIG.panel_subtitle, "") + "</div>";
 
     var closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.className = "mv-widget-close-btn";
     closeBtn.innerHTML = "&times;";
+
+    // ✅ preview panel módban a close ne legyen kattintható (vizuál marad)
+    if (getPreviewKind() === "panel") {
+      closeBtn.setAttribute("aria-disabled", "true");
+      closeBtn.setAttribute("tabindex", "-1");
+    }
 
     header.appendChild(headerContent);
     header.appendChild(closeBtn);
@@ -707,7 +1057,7 @@
     section4.innerHTML =
       '<div class="mv-widget-section-label">❤️ Érdeklődés</div>' +
       '<div class="mv-widget-form-field">' +
-      '<input id="mv-input-interests" class="mv-widget-input" type="text" placeholder="pl. futás, tech, kávé, fotózás" />' +
+      '<input id="mv-input-interests" class="mv-widget-input" type="text" placeholder="' + safeStr(MV_CONFIG.interest_placeholder, "pl. futás, tech, kávé, fotózás") + '" />' +
       "</div>";
 
     var section5 = document.createElement("div");
@@ -715,7 +1065,7 @@
     section5.innerHTML =
       '<div class="mv-widget-section-label">📝 További részletek</div>' +
       '<div class="mv-widget-form-field">' +
-      '<textarea id="mv-input-free-text" class="mv-widget-textarea" placeholder="pl. szereti a praktikus dolgokat, kütyüket, sportot..."></textarea>' +
+      '<textarea id="mv-input-free-text" class="mv-widget-textarea" placeholder="' + safeStr(MV_CONFIG.details_placeholder, "pl. szereti a praktikus dolgokat...") + '"></textarea>' +
       "</div>";
 
     var resultsTitle = document.createElement("div");
@@ -772,6 +1122,8 @@
     MV_STATE.panel = panel;
 
     closeBtn.addEventListener("click", function () {
+      // ✅ preview panel módban tilos bezárni
+      if (getPreviewKind() === "panel") return;
       closePanel(true);
     });
 
@@ -782,6 +1134,9 @@
     resetBtn.addEventListener("click", function () {
       resetForm();
     });
+
+    applyTheme();
+    applyTextsToDom();
   }
 
   function openPanel() {
@@ -791,6 +1146,7 @@
 
     panel.style.display = "flex";
     if (MV_STATE.bubbleBtn) MV_STATE.bubbleBtn.style.display = "none";
+    stopBubbleRotation();
     if (isMobileLike()) lockBodyScroll(true);
   }
 
@@ -807,6 +1163,7 @@
 
     if (MV_STATE.bubbleBtn) MV_STATE.bubbleBtn.style.display = "block";
     lockBodyScroll(false);
+    startBubbleRotation();
   }
 
   /* ===================== LOGIC ===================== */
@@ -848,12 +1205,11 @@
         resetBtn.textContent = "🔄 Új ajánlat";
       }, 1200);
     }
-        // ✅ mindig ugorjon a panel tetejére
+
     try {
       var bodyEl = document.querySelector("#mv-widget-panel .mv-widget-body");
       if (bodyEl) bodyEl.scrollTo({ top: 0, behavior: "smooth" });
     } catch (_) {}
-
   }
 
   function parseNumberOrNull(value) {
@@ -877,6 +1233,8 @@
   }
 
   async function handleRecommendClick() {
+    mvRefreshAuth();
+
     var statusEl = document.getElementById("mv-status");
     var resultsTitle = document.getElementById("mv-results-title");
     var resultsEl = document.getElementById("mv-results");
@@ -953,7 +1311,12 @@
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error("Ajánló API hiba: " + response.status);
+      if (!response.ok) {
+        var errJson = {};
+        try { errJson = await response.json(); } catch (_) {}
+        var reason = (errJson && errJson.error) ? (" (" + errJson.error + ")") : "";
+        throw new Error("Ajánló API hiba: " + response.status + reason);
+      }
 
       var data = await response.json();
       var items = (data && data.items) || [];
@@ -1063,6 +1426,20 @@
     });
   }
 
+  /* ===================== PREVIEW: postMessage listener ===================== */
+
+  function setupPreviewListener() {
+    if (!isPreviewMode()) return;
+
+    window.addEventListener("message", function (ev) {
+      try {
+        var data = ev && ev.data ? ev.data : null;
+        if (!data || data.type !== "MV_WIDGET_PREVIEW_CONFIG") return;
+        applyConfig(data.config || null);
+      } catch (_) {}
+    });
+  }
+
   /* ===================== INIT ===================== */
 
   async function init() {
@@ -1070,7 +1447,26 @@
     if (!allowed) return;
 
     injectStyles();
+    setupPreviewListener();
+
+    if (!isPreviewMode()) {
+      var serverCfg = await fetchPartnerConfig();
+      if (serverCfg) applyConfig(serverCfg);
+      else {
+        applyTheme();
+        applyTextsToDom();
+      }
+    }
+
     ensureBubbleOnlyDom();
+
+    var p = getPreviewKind();
+    if (p === "bubble") {
+      document.documentElement.classList.add("mv-preview-bubble");
+    } else if (p === "panel") {
+      document.documentElement.classList.add("mv-preview-panel");
+      openPanel(); // jobbra mindig nyitva
+    }
   }
 
   if (document.readyState === "loading") {

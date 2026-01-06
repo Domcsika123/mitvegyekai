@@ -12,6 +12,10 @@ import {
   setPartnerBlocked,
   setPartnerAllowedDomains,
   rotatePartnerApiKey,
+  // ✅ ÚJ: widget config
+  getPartnerWidgetConfig,
+  setPartnerWidgetConfig,
+  clearPartnerWidgetConfig,
 } from "../services/partnerService";
 
 const router = Router();
@@ -105,13 +109,22 @@ router.delete("/catalogs/:site_key", (req, res) => {
     const { site_key } = req.params;
     if (!site_key) return res.status(400).json({ error: "site_key kötelező." });
 
+    // katalógus törlés
     deleteCatalog(site_key);
+
+    // ✅ ha van hozzá partner, reseteljük a widget szerkesztéseket is (default kék)
+    const p = findPartnerBySiteKey(site_key);
+    if (p) {
+      clearPartnerWidgetConfig(site_key);
+    }
+
     return res.json({ ok: true });
   } catch (err) {
     console.error("Hiba a /api/admin/catalogs/:site_key (DELETE) hívásban:", err);
     return res.status(500).json({ error: "Hiba történt a katalógus törlése során." });
   }
 });
+
 
 /* ---------- STATISZTIKA ---------- */
 
@@ -172,7 +185,6 @@ router.post("/partners/:site_key/block", (req, res) => {
   }
 });
 
-/** ✅ ÚJ: allowed domains mentése */
 router.post("/partners/:site_key/allowed-domains", (req, res) => {
   try {
     const { site_key } = req.params;
@@ -190,7 +202,6 @@ router.post("/partners/:site_key/allowed-domains", (req, res) => {
   }
 });
 
-/** ✅ ÚJ: API key rotálás */
 router.post("/partners/:site_key/rotate-key", (req, res) => {
   try {
     const { site_key } = req.params;
@@ -233,6 +244,65 @@ router.get("/partners/:site_key", (req, res) => {
   } catch (err) {
     console.error("Hiba a /api/admin/partners/:site_key (GET, detail) hívásban:", err);
     return res.status(500).json({ error: "Hiba történt a partner lekérdezésekor." });
+  }
+});
+
+/* ---------- ✅ WIDGET CONFIG (ADMIN) ---------- */
+
+// lekérés
+router.get("/widget-config/:site_key", (req, res) => {
+  try {
+    const { site_key } = req.params;
+    if (!site_key) return res.status(400).json({ error: "Hiányzik a site_key paraméter." });
+
+    const partner = findPartnerBySiteKey(site_key);
+    if (!partner) return res.status(404).json({ error: "Nincs ilyen partner." });
+
+    const widget_config = getPartnerWidgetConfig(site_key);
+    return res.json({ ok: true, site_key, widget_config });
+  } catch (err) {
+    console.error("Hiba a /api/admin/widget-config/:site_key (GET) hívásban:", err);
+    return res.status(500).json({ error: "Hiba történt a widget config lekérésekor." });
+  }
+});
+
+// mentés
+router.post("/widget-config/:site_key", (req, res) => {
+  try {
+    const { site_key } = req.params;
+    if (!site_key) return res.status(400).json({ error: "Hiányzik a site_key paraméter." });
+
+    const partner = findPartnerBySiteKey(site_key);
+    if (!partner) return res.status(404).json({ error: "Nincs ilyen partner." });
+
+    const { widget_config } = req.body || {};
+    const updated = setPartnerWidgetConfig(site_key, widget_config);
+
+    if (!updated) return res.status(404).json({ error: "Nincs ilyen partner." });
+
+    return res.json({ ok: true, site_key, partner: updated });
+  } catch (err) {
+    console.error("Hiba a /api/admin/widget-config/:site_key (POST) hívásban:", err);
+    return res.status(500).json({ error: "Hiba történt a widget config mentésekor." });
+  }
+});
+
+// reset (opcionális)
+router.post("/widget-config/:site_key/reset", (req, res) => {
+  try {
+    const { site_key } = req.params;
+    if (!site_key) return res.status(400).json({ error: "Hiányzik a site_key paraméter." });
+
+    const partner = findPartnerBySiteKey(site_key);
+    if (!partner) return res.status(404).json({ error: "Nincs ilyen partner." });
+
+    const updated = clearPartnerWidgetConfig(site_key);
+    if (!updated) return res.status(404).json({ error: "Nincs ilyen partner." });
+
+    return res.json({ ok: true, site_key, partner: updated });
+  } catch (err) {
+    console.error("Hiba a /api/admin/widget-config/:site_key/reset (POST) hívásban:", err);
+    return res.status(500).json({ error: "Hiba történt a widget config reset során." });
   }
 });
 

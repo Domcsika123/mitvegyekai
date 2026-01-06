@@ -310,7 +310,14 @@
 
     <!-- Webshop-katalógusok -->
     <div class="mv-card">
-      <h2>Webshop-katalógusok</h2>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <h2 style="margin:0;">Webshop-katalógusok</h2>
+
+        <a href="/widget-editor.html"
+          class="mv-button-link">
+          Widget szerkesztő
+        </a>
+      </div>
 
       <table id="catalog-table">
         <thead>
@@ -324,6 +331,7 @@
       </table>
     </div>
 
+
     <!-- CSV import -->
     <div class="mv-card">
       <h2>Termékek importálása CSV-ből</h2>
@@ -334,7 +342,7 @@
       <div class="mv-input-row">
         <div class="mv-input-group" style="max-width: 220px;">
           <label for="csv-site-key">site_key</label>
-          <input id="csv-site-key" type="text" placeholder="pl. default vagy haver-shop" />
+          <input id="csv-site-key" type="text" />
         </div>
       </div>
 
@@ -389,7 +397,7 @@
       <div class="mv-input-row">
         <div class="mv-input-group" style="max-width: 260px;">
           <label for="partner-name">Új partner neve</label>
-          <input id="partner-name" type="text" placeholder="pl. Haver Webshop" />
+          <input id="partner-name" type="text" />
         </div>
       </div>
 

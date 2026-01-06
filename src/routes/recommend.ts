@@ -6,7 +6,7 @@ import { rerankWithLLM } from "../ai/rerank";
 import { filterProductsByRules } from "../ai/rules";
 import { UserContext } from "../models/UserContext";
 import { recordRecommendation } from "../services/statsService";
-import { findPartnerByApiKey } from "../services/partnerService";
+import { findPartnerByApiKey, findPartnerBySiteKey } from "../services/partnerService";
 
 const router = Router();
 
@@ -45,7 +45,6 @@ function domainMatches(host: string, allowed: string): boolean {
   const a = (allowed || "").trim().toLowerCase();
   if (!a) return false;
   if (host === a) return true;
-  // engedjük a subdomaineket is, ha a listában "shop1.hu" szerepel
   return host.endsWith("." + a);
 }
 
@@ -55,8 +54,7 @@ function isOriginAllowedForPartner(origin: string, partner: any): boolean {
 
   const list = Array.isArray(partner?.allowed_domains) ? partner.allowed_domains : [];
 
-  // ✅ ha nincs lista megadva, nem törjük el a rendszert (backward-compatible)
-  // ha STRICT-et akarsz: itt return false; és akkor kötelező a lista.
+  // ha nincs lista: backward-compatible
   if (list.length === 0) return true;
 
   return list.some((d: string) => domainMatches(host, String(d)));
@@ -66,10 +64,7 @@ function applyCors(res: any, origin: string) {
   res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, x-mv-api-key, x-api-key"
-  );
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-mv-api-key, x-api-key");
 }
 
 // ----- Rate limit (site_key alapján) -----
@@ -98,14 +93,9 @@ function hitRateLimit(key: string, limit: number): boolean {
 
 // ----- site_key / partner resolve -----
 
-/**
- * SZABÁLY:
- * - default katalógus mehet apiKey nélkül (demo)
- * - nem-default katalógus CSAK érvényes apiKey-vel
- * - ha partner blokkolva => tiltás
- * - ha apiKey-hez nincs partner (törölt) => tiltás
- */
-function resolveSiteKeyOrBlock(req: any): { siteKey: string; blocked: boolean; partner: any | null } {
+function resolveSiteKeyOrBlock(
+  req: any
+): { siteKey: string; blocked: boolean; partner: any | null; reason?: string } {
   const apiKey = getApiKeyFromReq(req);
   const body = req.body || {};
 
@@ -121,24 +111,21 @@ function resolveSiteKeyOrBlock(req: any): { siteKey: string; blocked: boolean; p
 
   // Nem defaulthoz KÖTELEZŐ apiKey
   if (!apiKey) {
-    return { siteKey: "default", blocked: true, partner: null };
+    return { siteKey: "default", blocked: true, partner: null, reason: "API_KEY_REQUIRED" };
   }
 
   const partner = findPartnerByApiKey(apiKey);
   if (!partner) {
-    return { siteKey: "default", blocked: true, partner: null };
+    return { siteKey: "default", blocked: true, partner: null, reason: "INVALID_API_KEY" };
   }
 
   if (partner.blocked) {
-    return { siteKey: partner.site_key, blocked: true, partner };
+    return { siteKey: partner.site_key, blocked: true, partner, reason: "PARTNER_BLOCKED" };
   }
 
   return { siteKey: partner.site_key, blocked: false, partner };
 }
 
-/**
- * /partner-status esetén rate limit key (site_key)
- */
 function resolveSiteKeyForStatus(req: any): { siteKey: string; partner: any | null } {
   const apiKey = getApiKeyFromReq(req);
 
@@ -187,42 +174,47 @@ router.options("/recommend", (req, res) => {
   return res.status(204).end();
 });
 
+// ✅ ÚJ: partner-config preflight
+router.options("/partner-config", (req, res) => {
+  const origin = req.headers.origin as string | undefined;
+  const apiKey = getApiKeyFromReq(req);
+  const partner = apiKey ? findPartnerByApiKey(apiKey) : null;
+
+  if (origin) {
+    if (partner && !isOriginAllowedForPartner(origin, partner)) {
+      return res.status(403).end();
+    }
+    applyCors(res, origin);
+  }
+  return res.status(204).end();
+});
+
 // ----- partner-status -----
 
-/**
- * Widgetnek: megkérdezi, hogy megjelenhet-e
- * GET /api/partner-status
- * Header: x-mv-api-key (vagy x-api-key)
- */
 router.get("/partner-status", (req, res) => {
   const origin = req.headers.origin as string | undefined;
 
   const apiKey = getApiKeyFromReq(req);
   const { siteKey, partner } = resolveSiteKeyForStatus(req);
 
-  // ✅ CORS: ha böngészőből jön és partner van, ellenőrizzük
   if (origin && partner) {
     if (!isOriginAllowedForPartner(origin, partner)) {
       return res.status(403).json({ allowed: false, reason: "CORS_BLOCKED" });
     }
     applyCors(res, origin);
   } else if (origin && !partner) {
-    // demo módnál is engedjük vissza ugyanarra az originre (különben a böngésző tilt)
     applyCors(res, origin);
   }
 
-  // ✅ rate limit (siteKey alapján)
   if (hitRateLimit(`status:${siteKey}`, STATUS_MAX)) {
     return res.status(429).json({ allowed: false, reason: "RATE_LIMIT" });
   }
 
-  // fontos: a widget most már küldi query-ben
   const requestedSiteKey =
     typeof req.query.site_key === "string" && req.query.site_key.trim() !== ""
       ? req.query.site_key.trim()
       : "default";
 
-  // ✅ DEMO csak akkor oké, ha default (különben ne jelenjen meg a widget)
   if (!apiKey) {
     if (requestedSiteKey === "default") {
       return res.json({ allowed: true, mode: "demo" });
@@ -237,6 +229,57 @@ router.get("/partner-status", (req, res) => {
   return res.json({ allowed: true, site_key: p.site_key });
 });
 
+// ✅ ÚJ: partner-config (widget UI config lekérése)
+router.get("/partner-config", (req, res) => {
+  const origin = req.headers.origin as string | undefined;
+  const apiKey = getApiKeyFromReq(req);
+
+  const requestedSiteKey =
+    typeof req.query.site_key === "string" && req.query.site_key.trim() !== ""
+      ? req.query.site_key.trim()
+      : "default";
+
+  // rate limit
+  if (hitRateLimit(`config:${requestedSiteKey}`, STATUS_MAX)) {
+    if (origin) applyCors(res, origin);
+    return res.status(429).json({ ok: false, error: "RATE_LIMIT" });
+  }
+
+  // default demo: engedjük vissza, de config nem kötelező
+  if (!apiKey) {
+    if (origin) applyCors(res, origin);
+    if (requestedSiteKey === "default") {
+      return res.json({ ok: true, site_key: "default", widget_config: null, mode: "demo" });
+    }
+    return res.status(403).json({ ok: false, error: "API_KEY_REQUIRED" });
+  }
+
+  const partner = findPartnerByApiKey(apiKey);
+  if (!partner) {
+    if (origin) applyCors(res, origin);
+    return res.status(403).json({ ok: false, error: "INVALID_API_KEY" });
+  }
+  if (partner.blocked) {
+    if (origin) applyCors(res, origin);
+    return res.status(403).json({ ok: false, error: "PARTNER_BLOCKED" });
+  }
+
+  if (origin) {
+    if (!isOriginAllowedForPartner(origin, partner)) {
+      return res.status(403).json({ ok: false, error: "CORS_BLOCKED" });
+    }
+    applyCors(res, origin);
+  }
+
+  // biztonság: a partner saját site_key-jét adjuk
+  const p = findPartnerBySiteKey(partner.site_key);
+  return res.json({
+    ok: true,
+    site_key: partner.site_key,
+    widget_config: (p && (p as any).widget_config) ? (p as any).widget_config : null,
+  });
+});
+
 // ----- recommend -----
 
 router.post("/recommend", async (req, res) => {
@@ -244,26 +287,23 @@ router.post("/recommend", async (req, res) => {
 
   try {
     const body = req.body || {};
-    const { siteKey, blocked, partner } = resolveSiteKeyOrBlock(req);
+    const { siteKey, blocked, partner, reason } = resolveSiteKeyOrBlock(req);
 
-    // ✅ CORS: ha böngészőből jön és partner van, ellenőrizzük
     if (origin && partner) {
       if (!isOriginAllowedForPartner(origin, partner)) {
         return res.status(403).json({ error: "CORS_BLOCKED" });
       }
       applyCors(res, origin);
     } else if (origin && !partner) {
-      // demo/default esetén is engedjük vissza ugyanarra az originre
       applyCors(res, origin);
     }
 
-    // ✅ rate limit (siteKey alapján)
     if (hitRateLimit(`recommend:${siteKey}`, RECOMMEND_MAX)) {
       return res.status(429).json({ error: "RATE_LIMIT" });
     }
 
     if (blocked) {
-      return res.status(403).json({ error: "PARTNER_BLOCKED" });
+      return res.status(403).json({ error: reason || "PARTNER_BLOCKED" });
     }
 
     const budgetMin = toNumberOrNull(body.budget_min);
