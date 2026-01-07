@@ -5,6 +5,7 @@ import path from "path";
 import recommendRouter from "./routes/recommend";
 import adminRouter from "./routes/admin";
 import adminLoginRouter from "./routes/adminLogin";
+import partnerRouter from "./routes/partner";
 import { adminAuth } from "./middleware/adminAuth";
 
 const app = express();
@@ -20,6 +21,9 @@ app.use(express.static(publicDir));
 app.get("/health", (req, res) => {
   res.json({ status: "OK", service: "MitVegyek API működik" });
 });
+
+// ✅ PARTNER API (login + stat + feedback)
+app.use("/api/partner", partnerRouter);
 
 // ✅ LOGIN endpoint (NINCS token védelem!)
 // POST /api/admin/login

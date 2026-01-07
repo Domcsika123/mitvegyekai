@@ -4,6 +4,7 @@ import { listCatalogs, replaceCatalog, deleteCatalog } from "../services/product
 import { getAllStats } from "../services/statsService";
 import { Product } from "../models/Product";
 import { embedProductsInBatches } from "../ai/embeddings";
+import { listAllFeedback, updateFeedback } from "../services/feedbackService";
 import {
   createPartner,
   listPartners,
@@ -305,5 +306,45 @@ router.post("/widget-config/:site_key/reset", (req, res) => {
     return res.status(500).json({ error: "Hiba történt a widget config reset során." });
   }
 });
+
+/* ---------- ✅ BEJELENTÉSEK / FEEDBACK (ADMIN) ---------- */
+
+router.get("/feedback", (req, res) => {
+  try {
+    const { status, site_key } = req.query || {};
+    let items = listAllFeedback();
+
+    if (status && typeof status === "string") {
+      items = items.filter((x) => x.status === status);
+    }
+    if (site_key && typeof site_key === "string") {
+      items = items.filter((x) => x.site_key === site_key);
+    }
+
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error("Hiba a /api/admin/feedback (GET) hívásban:", err);
+    return res.status(500).json({ error: "Nem sikerült lekérni a bejelentéseket." });
+  }
+});
+
+router.patch("/feedback/:id", (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ error: "Hiányzik az id." });
+
+    const updated = updateFeedback(id, req.body || {});
+    if (!updated) return res.status(404).json({ error: "Nincs ilyen bejelentés." });
+
+    return res.json({ ok: true, item: updated });
+  } catch (err: any) {
+    const msg = String(err?.message || "");
+    if (msg.includes("Érvénytelen")) return res.status(400).json({ error: msg });
+
+    console.error("Hiba a /api/admin/feedback/:id (PATCH) hívásban:", err);
+    return res.status(500).json({ error: "Nem sikerült menteni a módosítást." });
+  }
+});
+
 
 export default router;

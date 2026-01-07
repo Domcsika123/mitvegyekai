@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mitvegyek.ai – Partner belépés</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#f3f4f6;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#4b5563;
+      --border:#d1d5db;
+      --primary:#2563eb;
+      --primaryHover:#1d4ed8;
+      --ok:#166534;
+      --err:#b91c1c;
+      --shadow:0 18px 40px rgba(0,0,0,0.10);
+      --radius:14px;
+    }
+    *{ box-sizing:border-box; }
+
+    body{
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      margin:0;
+      padding:24px;
+      background:var(--bg);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .mv-container{
+      width:100%;
+      max-width:460px;
+      margin:0 auto;
+    }
+
+    .mv-card{
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:18px 18px 16px 18px;
+    }
+
+    h1{ margin:0 0 6px 0; font-size:18px; color:var(--text); }
+    .mv-small{ font-size:13px; color:var(--muted); margin:0 0 14px 0; line-height:1.35; }
+
+    label{ font-size:12px; color:var(--muted); display:block; margin-top:12px; margin-bottom:6px; }
+
+    input{
+      width:100%;
+      border-radius:10px;
+      border:1px solid var(--border);
+      padding:10px 12px;
+      font-size:14px;
+      outline:none;
+      background:#fff;
+      color:var(--text);
+    }
+    input:focus{
+      border-color:var(--primary);
+      box-shadow:0 0 0 3px rgba(37,99,235,0.12);
+    }
+
+    .mv-row{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
+
+    .mv-btn{
+      width:100%;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:999px;
+      border:none;
+      cursor:pointer;
+      padding:12px 16px;
+      font-size:14px;
+      font-weight:700;
+      white-space:nowrap;
+      background:var(--primary);
+      color:#fff;
+    }
+    .mv-btn:hover{ background:var(--primaryHover); }
+    .mv-btn:disabled{ opacity:.7; cursor:not-allowed; }
+
+    .mv-status{ margin-top:10px; font-size:13px; min-height:18px; }
+    .ok{ color:var(--ok); }
+    .err{ color:var(--err); }
+    .muted{ color:var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="mv-container">
+    <div class="mv-card">
+      <h1>Partner belépés</h1>
+      <p class="mv-small">Jelentkezz be, és megnyílik a saját felületed.</p>
+
+      <label for="site_key">site_key</label>
+      <input id="site_key" />
+
+      <label for="api_key">api_key</label>
+      <input id="api_key" type="password" />
+
+      <div class="mv-row">
+        <button class="mv-btn" id="btnLogin">Belépés</button>
+      </div>
+
+      <div class="mv-status" id="status"></div>
+    </div>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const btn = document.getElementById("btnLogin");
+
+    function setStatus(text, ok) {
+      statusEl.textContent = text || "";
+      statusEl.className = "mv-status " + (ok === true ? "ok" : ok === false ? "err" : "muted");
+    }
+
+    function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+    document.getElementById("btnLogin").addEventListener("click", async () => {
+      const site_key = (document.getElementById("site_key").value || "").trim();
+      const api_key = (document.getElementById("api_key").value || "").trim();
+
+      if (!site_key || !api_key) {
+        setStatus("Add meg a site_key-t és az api_key-t.", false);
+        return;
+      }
+
+      btn.disabled = true;
+      setStatus("Beléptetés folyamatban…", null);
+
+      try {
+        const res = await fetch("/api/partner/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ site_key, api_key })
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+
+        localStorage.setItem("mv_partner_token", data.token);
+        localStorage.setItem("mv_partner_site_key", data.site_key);
+
+        // ✅ sikeres visszajelzés maradjon tovább
+        setStatus("Sikeres belépés. Átirányítás…", true);
+        await sleep(900);
+
+        window.location.href = "/partner-dashboard.html";
+      } catch (e) {
+        setStatus("Hiba: " + (e.message || "ismeretlen"), false);
+        await sleep(4200);
+        btn.disabled = false;
+      }
+    });
+
+    // Enter = belépés
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") btn.click();
+    });
+  </script>
+</body>
+</html>

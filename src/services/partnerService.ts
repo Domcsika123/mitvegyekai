@@ -492,3 +492,20 @@ export function clearPartnerWidgetConfig(siteKey: string): Partner | null {
   console.log(`[partnerService] widget_config reset default-ra: site_key="${partner.site_key}"`);
   return partner;
 }
+
+// ✅ Partner belépéshez (site_key + api_key)
+export function authenticatePartner(siteKey: string, apiKey: string): Partner | null {
+  const p = findPartnerBySiteKey(siteKey);
+  if (!p) return null;
+
+  if (p.blocked) return null;
+
+  const provided = String(apiKey || "").trim();
+  if (!provided) return null;
+
+  // egyszerű összehasonlítás (mivel jelenleg plain textben van az api_key)
+  if (String(p.api_key || "").trim() !== provided) return null;
+
+  return p;
+}
+

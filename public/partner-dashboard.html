@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mitvegyek.ai – Partner Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;padding:24px;background:#f3f4f6;}
+    .mv-container{max-width:1100px;margin:0 auto;}
+    .mv-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;}
+    .mv-card{background:white;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.05);padding:18px 20px;margin-bottom:18px;}
+    h1{margin:0 0 4px 0;}
+    .mv-small{font-size:13px;color:#4b5563;}
+    .mv-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;border:none;cursor:pointer;padding:8px 14px;font-size:13px;white-space:nowrap;}
+    .mv-btn-primary{background:#2563eb;color:#fff;}
+    .mv-btn-primary:hover{background:#1d4ed8;}
+    .mv-btn-secondary{background:#e5e7eb;color:#111827;}
+    .mv-btn-secondary:hover{background:#d1d5db;}
+    .mv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px;}
+    .mv-box{border-radius:10px;padding:12px;background:#f9fafb;border:1px solid #e5e7eb;}
+    .mv-kpi{font-size:28px;font-weight:800;margin-top:4px;}
+    .mv-pill{display:inline-flex;gap:8px;align-items:center;border:1px solid #e5e7eb;background:white;padding:6px 10px;border-radius:999px;font-size:12px;margin:4px 6px 0 0;}
+    .mv-count{font-weight:700;background:#111827;color:#fff;padding:2px 8px;border-radius:999px;font-size:11px;}
+    .mv-status{margin-top:8px;font-size:13px;}
+    .ok{color:#166534;}
+    .err{color:#b91c1c;}
+    label{font-size:12px;color:#4b5563;display:block;margin-top:10px;margin-bottom:4px;}
+    input, textarea, select{width:100%;border-radius:10px;border:1px solid #d1d5db;padding:10px 10px;font-size:14px;}
+    textarea{min-height:120px;resize:vertical;}
+    input:focus, textarea:focus, select:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 1px #2563eb33;}
+    table{border-collapse:collapse;width:100%;font-size:13px;margin-top:10px;table-layout:fixed;}
+    th,td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:middle;word-break:break-word;}
+    th{font-weight:600;color:#374151;}
+    code{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-size:12px;background:#111827;color:#e5e7eb;padding:3px 6px;border-radius:6px;}
+  </style>
+
+  <script>
+    (function () {
+      const t = localStorage.getItem("mv_partner_token");
+      if (!t) {
+        window.location.href = "/partner-login.html";
+        return;
+      }
+      window.MV_PARTNER_TOKEN = t;
+    })();
+
+    async function partnerFetch(url, options) {
+      const token = window.MV_PARTNER_TOKEN;
+      const opts = options || {};
+      opts.headers = Object.assign({}, opts.headers || {}, {
+        "Authorization": "Bearer " + token
+      });
+      const res = await fetch(url, opts);
+      if (res.status === 401) {
+        localStorage.removeItem("mv_partner_token");
+        localStorage.removeItem("mv_partner_site_key");
+        window.location.href = "/partner-login.html";
+      }
+      return res;
+    }
+
+    function escapeHtml(s) {
+      return String(s || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function topEntries(obj, limit) {
+      const entries = Object.entries(obj || {});
+      entries.sort((a, b) => (b[1] || 0) - (a[1] || 0));
+      return entries.slice(0, limit);
+    }
+
+    function renderPills(container, entries, emptyText) {
+      container.innerHTML = "";
+      if (!entries || entries.length === 0) {
+        container.innerHTML = `<div class="mv-small">${escapeHtml(emptyText || "Nincs adat.")}</div>`;
+        return;
+      }
+      for (const [k, v] of entries) {
+        const pill = document.createElement("div");
+        pill.className = "mv-pill";
+        pill.innerHTML = `<span>${escapeHtml(k)}</span><span class="mv-count">${escapeHtml(String(v||0))}</span>`;
+        container.appendChild(pill);
+      }
+    }
+
+    function fmtDateTime(v){
+      if(!v) return "-";
+      try{ const d=new Date(v); if(isNaN(d.getTime())) return "-"; return d.toLocaleString("hu-HU"); }catch{ return "-"; }
+    }
+  </script>
+</head>
+
+<body>
+  <div class="mv-container">
+    <div class="mv-topbar">
+      <div>
+        <h1>Partner Dashboard</h1>
+        <div class="mv-small" id="subtitle">Betöltés...</div>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="mv-btn mv-btn-secondary" id="btnRefresh">Frissítés</button>
+        <button class="mv-btn mv-btn-secondary" id="btnLogout">Kijelentkezés</button>
+      </div>
+    </div>
+
+    <div class="mv-card" id="statsCard">
+      <h2 style="margin:0 0 6px 0;">Statisztikák</h2>
+      <div class="mv-small" id="statsInfo"></div>
+
+      <div class="mv-grid" style="margin-top:12px;">
+        <div class="mv-box">
+          <div class="mv-small">Összes kérés</div>
+          <div class="mv-kpi" id="kpiTotal">0</div>
+        </div>
+        <div class="mv-box">
+          <div class="mv-small">Utolsó kérés</div>
+          <div class="mv-kpi" style="font-size:16px;" id="kpiLast">-</div>
+        </div>
+        <div class="mv-box">
+          <div class="mv-small">Utolsó 30 nap (összes)</div>
+          <div class="mv-kpi" id="kpi30">0</div>
+        </div>
+      </div>
+
+      <div class="mv-grid">
+        <div class="mv-box">
+          <h3 style="margin:0 0 8px 0; font-size:14px;">Top keresések</h3>
+          <div id="freeTextBox"></div>
+        </div>
+        <div class="mv-box">
+          <h3 style="margin:0 0 8px 0; font-size:14px;">Top kulcsszavak</h3>
+          <div id="interestsBox"></div>
+        </div>
+        <div class="mv-box">
+          <h3 style="margin:0 0 8px 0; font-size:14px;">Budget eloszlás</h3>
+          <div id="budgetBox"></div>
+        </div>
+        <div class="mv-box">
+          <h3 style="margin:0 0 8px 0; font-size:14px;">Napi bontás (30 nap)</h3>
+          <table>
+            <thead><tr><th style="width:45%;">Dátum</th><th>Kérések</th></tr></thead>
+            <tbody id="dailyTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="mv-status" id="statsStatus"></div>
+    </div>
+
+    <div class="mv-card">
+      <h2 style="margin:0 0 6px 0;">Visszajelzés / Probléma bejelentés</h2>
+      <p class="mv-small" style="margin-top:0;">A beküldött bejelentéseket az admin oldalon látjuk és kezeljük.</p>
+
+      <div class="mv-grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));">
+        <div class="mv-box">
+          <label>Típus</label>
+          <select id="fbType">
+            <option value="hiba">Hiba</option>
+            <option value="kerdes">Kérdés</option>
+            <option value="otlet">Ötlet / feature</option>
+            <option value="egyeb">Egyéb</option>
+          </select>
+
+          <label>Tárgy</label>
+          <input id="fbSubject" placeholder="pl. Nem tölt be a widget mobilon" />
+
+          <label>Üzenet</label>
+          <textarea id="fbMessage" placeholder="Írd le részletesen, mit tapasztalsz..."></textarea>
+
+          <label>Oldal (opcionális)</label>
+          <input id="fbUrl" placeholder="pl. https://sajatwebaruhaz.hu/termek/123" />
+
+          <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+            <button class="mv-btn mv-btn-primary" id="btnSend">Beküldés</button>
+          </div>
+
+          <div class="mv-status" id="fbStatus"></div>
+        </div>
+
+        <div class="mv-box">
+          <h3 style="margin:0 0 8px 0; font-size:14px;">Legutóbbi bejelentéseid</h3>
+          <div class="mv-small" id="fbListHint">Betöltés...</div>
+          <table>
+            <thead><tr><th style="width:35%;">Dátum</th><th style="width:30%;">Státusz</th><th>Tárgy</th></tr></thead>
+            <tbody id="fbTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function setStatus(el, text, ok){
+      el.textContent = text || "";
+      el.className = "mv-status " + (ok===true ? "ok" : ok===false ? "err" : "");
+    }
+
+    async function loadStats(){
+      const statusEl = document.getElementById("statsStatus");
+      setStatus(statusEl, "Betöltés...", true);
+
+      const res = await partnerFetch("/api/partner/stats");
+      const data = await res.json().catch(()=> ({}));
+      if(!res.ok){ setStatus(statusEl, data.error || "Hiba a stat betöltésekor.", false); return; }
+
+      const stats = data.stats || {};
+      const siteKey = data.siteKey || stats.siteKey || localStorage.getItem("mv_partner_site_key") || "";
+      document.getElementById("subtitle").innerHTML = `Katalógus: <code>${escapeHtml(siteKey)}</code>`;
+      document.getElementById("statsInfo").textContent = "A statok automatikusan gyűlnek minden ajánláskérés után.";
+
+      document.getElementById("kpiTotal").textContent = String(stats.totalRequests || 0);
+      document.getElementById("kpiLast").textContent = fmtDateTime(stats.lastRequestAt);
+
+      const daily = Array.isArray(stats.dailyCounts) ? stats.dailyCounts.slice() : [];
+      let sum30 = 0;
+      daily.forEach(d => sum30 += Number(d.count||0));
+      document.getElementById("kpi30").textContent = String(sum30);
+
+      renderPills(document.getElementById("freeTextBox"), topEntries(stats.freeTextCount||{}, 12), "Még nincs keresés (free_text).");
+      renderPills(document.getElementById("interestsBox"), topEntries(stats.interestsCount||{}, 18), "Még nincs kulcsszó.");
+      renderPills(document.getElementById("budgetBox"), Object.entries(stats.priceBuckets||{}), "Nincs budget adat.");
+
+      const tbody = document.getElementById("dailyTbody");
+      tbody.innerHTML = "";
+      daily.sort((a,b)=> String(a.date).localeCompare(String(b.date)));
+      if(daily.length===0){
+        tbody.innerHTML = "<tr><td colspan='2'>Még nincs adat.</td></tr>";
+      } else {
+        daily.forEach(d=>{
+          const tr=document.createElement("tr");
+          tr.innerHTML = `<td>${escapeHtml(d.date)}</td><td>${escapeHtml(String(d.count||0))}</td>`;
+          tbody.appendChild(tr);
+        });
+      }
+
+      setStatus(statusEl, "", null);
+    }
+
+    async function loadMyFeedback(){
+      const hint = document.getElementById("fbListHint");
+      const tbody = document.getElementById("fbTbody");
+      hint.textContent = "Betöltés...";
+      tbody.innerHTML = "";
+
+      const res = await partnerFetch("/api/partner/feedback");
+      const data = await res.json().catch(()=> ({}));
+      if(!res.ok){
+        hint.textContent = "Nem sikerült betölteni.";
+        return;
+      }
+
+      const items = data.items || [];
+      hint.textContent = items.length ? "" : "Még nincs bejelentésed.";
+      items.slice(0, 12).forEach(x=>{
+        const tr=document.createElement("tr");
+        tr.innerHTML = `<td>${escapeHtml(fmtDateTime(x.created_at))}</td><td>${escapeHtml(x.status)}</td><td>${escapeHtml(x.subject)}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById("btnSend").addEventListener("click", async ()=>{
+      const fbStatus = document.getElementById("fbStatus");
+      setStatus(fbStatus, "", null);
+
+      const type = document.getElementById("fbType").value;
+      const subject = (document.getElementById("fbSubject").value || "").trim();
+      const message = (document.getElementById("fbMessage").value || "").trim();
+      const page_url = (document.getElementById("fbUrl").value || "").trim();
+
+      if(!subject || !message){
+        setStatus(fbStatus, "A tárgy és az üzenet kötelező.", false);
+        return;
+      }
+
+      setStatus(fbStatus, "Küldés...", true);
+
+      const res = await partnerFetch("/api/partner/feedback", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ type, subject, message, page_url: page_url || undefined })
+      });
+
+      const data = await res.json().catch(()=> ({}));
+      if(!res.ok){
+        setStatus(fbStatus, data.error || "Hiba a beküldéskor.", false);
+        return;
+      }
+
+      setStatus(fbStatus, "Köszönjük! Bejelentés rögzítve.", true);
+      document.getElementById("fbSubject").value = "";
+      document.getElementById("fbMessage").value = "";
+      document.getElementById("fbUrl").value = "";
+
+      await loadMyFeedback();
+      setTimeout(()=> setStatus(fbStatus, "", null), 2500);
+    });
+
+    document.getElementById("btnLogout").addEventListener("click", ()=>{
+      localStorage.removeItem("mv_partner_token");
+      localStorage.removeItem("mv_partner_site_key");
+      window.location.href = "/partner-login.html";
+    });
+
+    document.getElementById("btnRefresh").addEventListener("click", async ()=>{
+      await loadStats();
+      await loadMyFeedback();
+    });
+
+    window.addEventListener("DOMContentLoaded", async ()=>{
+      await loadStats();
+      await loadMyFeedback();
+    });
+  </script>
+</body>
+</html>

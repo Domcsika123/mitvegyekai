@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mitvegyek.ai – Bejelentések</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;padding:24px;background:#f3f4f6;}
+    .mv-container{max-width:1100px;margin:0 auto;}
+    .mv-card{background:white;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.05);padding:18px 20px;margin-bottom:18px;}
+    .mv-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;}
+    h1{margin:0 0 4px 0;}
+    .mv-small{font-size:13px;color:#4b5563;}
+    table{border-collapse:collapse;width:100%;font-size:13px;margin-top:10px;table-layout:fixed;}
+    th,td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:middle;word-break:break-word;}
+    th{font-weight:600;color:#374151;}
+    .mv-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;border:none;cursor:pointer;padding:8px 14px;font-size:13px;white-space:nowrap;}
+    .mv-btn-secondary{background:#e5e7eb;color:#111827;}
+    .mv-btn-secondary:hover{background:#d1d5db;}
+    .mv-btn-primary{background:#2563eb;color:#fff;}
+    .mv-btn-primary:hover{background:#1d4ed8;}
+    .mv-btn-danger{background:#dc2626;color:#fff;}
+    .mv-btn-danger:hover{background:#b91c1c;}
+    .mv-inline{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+
+    .mv-status{margin-top:8px;font-size:13px;}
+    .ok{color:#166534;}
+    .err{color:#b91c1c;}
+
+    textarea{width:100%;border-radius:10px;border:1px solid #d1d5db;padding:10px 10px;font-size:14px;min-height:90px;resize:vertical;}
+    textarea:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 1px #2563eb33;}
+    code{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;font-size:12px;background:#111827;color:#e5e7eb;padding:3px 6px;border-radius:6px;}
+
+    /* ✅ Művelet oszlop: középre igazítás */
+    table th:last-child,
+    table td:last-child { text-align:center; }
+
+    /* ✅ Gomb középre */
+    table td:last-child .mv-btn { margin:0 auto; display:inline-flex; }
+
+    /* ✅ középre rendező wrapper (Művelethez) */
+    .mv-cell-center{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+    }
+
+    /* ✅ Státusz wrapper: BALRA igazítva (ez volt a gond) */
+    .mv-status-cell{
+      display:flex;
+      justify-content:flex-start;
+      align-items:center;
+      width:100%;
+    }
+
+    /* opcionális: oszlopok fixebb arány */
+    table th:nth-child(5), table td:nth-child(5){ width:14%; }
+    table th:nth-child(6), table td:nth-child(6){ width:12%; }
+
+    /* ✅ pill szebb, fix magasság, stabil */
+    .mv-pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      line-height:1;
+      padding:4px 12px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      min-height:24px;
+      box-sizing:border-box;
+      background:#f1f5f9;
+      color:#0f172a;
+    }
+    .pill-open{background:#fee2e2;color:#991b1b;}
+    .pill-in{background:#ffedd5;color:#9a3412;}
+    .pill-res{background:#dcfce7;color:#166534;}
+  </style>
+
+  <script>
+    (function () {
+      const token = localStorage.getItem("mv_admin_token");
+      if (!token) {
+        window.location.href = "/admin-login.html";
+        return;
+      }
+      window.MV_ADMIN_TOKEN = token;
+    })();
+
+    async function adminFetch(url, options) {
+      const token = window.MV_ADMIN_TOKEN;
+      const opts = options || {};
+      opts.headers = Object.assign({}, opts.headers || {}, {
+        "x-admin-token": token
+      });
+
+      const res = await fetch(url, opts);
+
+      if (res.status === 401) {
+        localStorage.removeItem("mv_admin_token");
+        window.location.href = "/admin-login.html";
+      }
+      return res;
+    }
+
+    function escapeHtml(s) {
+      return String(s || "")
+        .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    }
+
+    function fmt(v){
+      if(!v) return "-";
+      try{ const d=new Date(v); if(isNaN(d.getTime())) return "-"; return d.toLocaleString("hu-HU"); }catch{ return "-"; }
+    }
+
+    function pill(status){
+      if(status==="open") return `<span class="mv-pill pill-open">open</span>`;
+      if(status==="in_progress") return `<span class="mv-pill pill-in">in_progress</span>`;
+      if(status==="resolved") return `<span class="mv-pill pill-res">resolved</span>`;
+      return `<span class="mv-pill">${escapeHtml(status)}</span>`;
+    }
+  </script>
+</head>
+<body>
+  <div class="mv-container">
+    <div class="mv-topbar">
+      <div>
+        <h1>Bejelentések</h1>
+        <div class="mv-small">Partner visszajelzések / hibák kezelése</div>
+      </div>
+      <div class="mv-inline">
+        <button class="mv-btn mv-btn-secondary" onclick="window.location.href='/admin.html'">← Vissza</button>
+        <button class="mv-btn mv-btn-secondary" id="btnRefresh">Frissítés</button>
+      </div>
+    </div>
+
+    <div class="mv-card">
+      <div class="mv-inline">
+        <label class="mv-small">Szűrés:</label>
+        <select id="filterStatus" style="border-radius:999px;border:1px solid #d1d5db;padding:8px 12px;">
+          <option value="">összes</option>
+          <option value="open">open</option>
+          <option value="in_progress">in_progress</option>
+          <option value="resolved">resolved</option>
+        </select>
+        <input id="filterSite" placeholder="site_key szűrő" style="border-radius:999px;border:1px solid #d1d5db;padding:8px 12px;" />
+        <button class="mv-btn mv-btn-primary" id="btnApply">Szűrés</button>
+      </div>
+
+      <div class="mv-status" id="status"></div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:18%;">Dátum</th>
+            <th style="width:12%;">site_key</th>
+            <th style="width:12%;">Típus</th>
+            <th style="width:30%;">Tárgy</th>
+            <th style="width:14%;">Státusz</th>
+            <th>Művelet</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="mv-card" id="detailCard" style="display:none;">
+      <h2 style="margin:0 0 6px 0;">Részletek</h2>
+      <div class="mv-small" id="detailMeta"></div>
+
+      <div style="margin-top:10px;">
+        <div><strong>Tárgy:</strong> <span id="detailSubject"></span></div>
+        <div style="margin-top:6px;"><strong>Üzenet:</strong></div>
+        <div id="detailMessage" style="white-space:pre-wrap;margin-top:6px;"></div>
+        <div style="margin-top:8px;"><strong>Oldal:</strong> <span id="detailUrl"></span></div>
+      </div>
+
+      <div class="mv-inline" style="margin-top:12px;">
+        <select id="detailStatus" style="border-radius:999px;border:1px solid #d1d5db;padding:8px 12px;">
+          <option value="open">open</option>
+          <option value="in_progress">in_progress</option>
+          <option value="resolved">resolved</option>
+        </select>
+        <button class="mv-btn mv-btn-primary" id="btnSave">Mentés</button>
+      </div>
+
+      <div style="margin-top:10px;">
+        <div class="mv-small">Admin megjegyzés (belső):</div>
+        <textarea id="detailNote" placeholder="pl. reprodukálva, javítás készül..."></textarea>
+      </div>
+
+      <div class="mv-status" id="detailStatusMsg"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentItem = null;
+
+    function setStatus(text, ok){
+      const el = document.getElementById("status");
+      el.textContent = text || "";
+      el.className = "mv-status " + (ok===true ? "ok" : ok===false ? "err" : "");
+    }
+
+    function setDetailMsg(text, ok){
+      const el = document.getElementById("detailStatusMsg");
+      el.textContent = text || "";
+      el.className = "mv-status " + (ok===true ? "ok" : ok===false ? "err" : "");
+    }
+
+    async function loadList(){
+      setStatus("Betöltés...", true);
+      const st = (document.getElementById("filterStatus").value || "").trim();
+      const sk = (document.getElementById("filterSite").value || "").trim();
+
+      const qs = new URLSearchParams();
+      if(st) qs.set("status", st);
+      if(sk) qs.set("site_key", sk);
+
+      const res = await adminFetch("/api/admin/feedback" + (qs.toString() ? "?" + qs.toString() : ""));
+      const data = await res.json().catch(()=> ({}));
+      if(!res.ok){
+        setStatus(data.error || "Hiba a bejelentések lekérésénél.", false);
+        return;
+      }
+
+      const items = data.items || [];
+      const tbody = document.getElementById("tbody");
+      tbody.innerHTML = "";
+
+      if(items.length===0){
+        tbody.innerHTML = "<tr><td colspan='6'>Nincs találat.</td></tr>";
+        setStatus("", null);
+        return;
+      }
+
+      items.forEach(it=>{
+        const tr=document.createElement("tr");
+        tr.innerHTML = `
+          <td>${escapeHtml(fmt(it.created_at))}</td>
+          <td><code>${escapeHtml(it.site_key)}</code></td>
+          <td>${escapeHtml(it.type)}</td>
+          <td>${escapeHtml(it.subject)}</td>
+          <td><div class="mv-status-cell">${pill(it.status)}</div></td>
+          <td><div class="mv-cell-center"><button class="mv-btn mv-btn-secondary">Megnyitás</button></div></td>
+        `;
+        tr.querySelector("button").addEventListener("click", ()=> openDetail(it));
+        tbody.appendChild(tr);
+      });
+
+      setStatus("", null);
+    }
+
+    function openDetail(it){
+      currentItem = it;
+      document.getElementById("detailCard").style.display = "block";
+      document.getElementById("detailMeta").innerHTML =
+        `#<code>${escapeHtml(it.id)}</code> • site_key: <code>${escapeHtml(it.site_key)}</code> • ${escapeHtml(fmt(it.created_at))}`;
+
+      document.getElementById("detailSubject").textContent = it.subject || "";
+      document.getElementById("detailMessage").textContent = it.message || "";
+      document.getElementById("detailUrl").textContent = it.page_url || "-";
+      document.getElementById("detailStatus").value = it.status || "open";
+      document.getElementById("detailNote").value = it.admin_note || "";
+      setDetailMsg("", null);
+
+      window.scrollTo({ top: document.getElementById("detailCard").offsetTop - 10, behavior: "smooth" });
+    }
+
+    async function saveDetail(){
+      if(!currentItem) return;
+
+      setDetailMsg("Mentés...", true);
+      const status = document.getElementById("detailStatus").value;
+      const admin_note = document.getElementById("detailNote").value;
+
+      const res = await adminFetch("/api/admin/feedback/" + encodeURIComponent(currentItem.id), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, admin_note })
+      });
+
+      const data = await res.json().catch(()=> ({}));
+      if(!res.ok){
+        setDetailMsg(data.error || "Hiba mentés közben.", false);
+        return;
+      }
+
+      setDetailMsg("Mentve.", true);
+      await loadList();
+
+      currentItem = data.item;
+      openDetail(currentItem);
+
+      setTimeout(()=> setDetailMsg("", null), 2000);
+    }
+
+    document.getElementById("btnRefresh").addEventListener("click", loadList);
+    document.getElementById("btnApply").addEventListener("click", loadList);
+    document.getElementById("btnSave").addEventListener("click", saveDetail);
+
+    // ✅ status váltás = azonnali szűrés
+    document.getElementById("filterStatus").addEventListener("change", loadList);
+
+    // ✅ site_key: Enterre szűr
+    document.getElementById("filterSite").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") loadList();
+    });
+
+    window.addEventListener("DOMContentLoaded", loadList);
+  </script>
+</body>
+</html>
