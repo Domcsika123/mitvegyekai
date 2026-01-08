@@ -32,6 +32,42 @@
     th,td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:middle;word-break:break-word;}
     th{font-weight:600;color:#374151;}
     code{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-size:12px;background:#111827;color:#e5e7eb;padding:3px 6px;border-radius:6px;}
+
+    /* ===== CHART UI ===== */
+    .mv-chart-wrap{
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+      background:#fff;
+      padding:10px;
+      overflow:hidden;
+    }
+    .mv-chart-grid{
+      display:grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap:12px;
+      margin-top:12px;
+    }
+    .mv-kpi-mini{
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+      padding:10px;
+      background:#fff;
+    }
+    .mv-kpi-mini .val{ font-size:20px; font-weight:800; margin-top:2px; }
+    .mv-chart-top{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:8px;
+    }
+    .mv-chart-sub{ font-size:13px; color:#4b5563; }
+    .mv-chart-btns{ display:flex; gap:8px; flex-wrap:wrap; }
+
+    @media (max-width: 860px){
+      .mv-chart-grid{ grid-template-columns: 1fr; }
+    }
   </style>
 
   <script>
@@ -92,6 +128,162 @@
       if(!v) return "-";
       try{ const d=new Date(v); if(isNaN(d.getTime())) return "-"; return d.toLocaleString("hu-HU"); }catch{ return "-"; }
     }
+
+    /* ===== CHART HELPERS (no library) ===== */
+    function sum(arr){ return (arr||[]).reduce((a,b)=>a+(Number(b)||0),0); }
+
+    function drawLineChart(canvas, labels, values) {
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const parent = canvas.parentElement;
+      const W = canvas.width = Math.max(320, parent ? parent.clientWidth : 700);
+      const H = canvas.height; // keep from HTML attr
+
+      ctx.clearRect(0, 0, W, H);
+
+      const pad = 18;
+      const innerW = W - pad*2;
+      const innerH = H - pad*2;
+
+      const n = values.length;
+      if (n === 0) {
+        ctx.fillStyle = "#6b7280";
+        ctx.font = "13px system-ui, -apple-system, Segoe UI, sans-serif";
+        ctx.fillText("Még nincs adat a grafikonhoz.", pad, pad+18);
+        return;
+      }
+
+      const maxV = Math.max(1, ...values);
+      const minV = Math.min(0, ...values);
+
+      const x = (i) => pad + (n === 1 ? innerW/2 : (i * (innerW / (n - 1))));
+      const y = (v) => pad + (innerH - ((v - minV) / (maxV - minV || 1)) * innerH);
+
+      // grid
+      ctx.globalAlpha = 0.12;
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 1;
+      for (let k = 0; k <= 4; k++) {
+        const yy = pad + (innerH * k / 4);
+        ctx.beginPath();
+        ctx.moveTo(pad, yy);
+        ctx.lineTo(W - pad, yy);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // line
+      ctx.strokeStyle = "#2563eb";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      values.forEach((v, i) => {
+        const px = x(i);
+        const py = y(v);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+
+      // points
+      ctx.fillStyle = "#2563eb";
+      values.forEach((v, i) => {
+        ctx.beginPath();
+        ctx.arc(x(i), y(v), 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // bottom labels (sparse)
+      ctx.fillStyle = "#4b5563";
+      ctx.font = "11px system-ui, -apple-system, Segoe UI, sans-serif";
+      const step = n > 14 ? Math.ceil(n / 7) : 1;
+      for (let i = 0; i < n; i += step) {
+        const t = labels[i] || "";
+        const txt = t.length >= 10 ? t.slice(5) : t;
+        ctx.fillText(txt, x(i) - 14, H - 6);
+      }
+    }
+
+    function setRangeButtons(activeDays){
+      const ids = {7:"range-7",30:"range-30",90:"range-90"};
+      [7,30,90].forEach(d=>{
+        const btn = document.getElementById(ids[d]);
+        if(!btn) return;
+        btn.classList.toggle("mv-btn-primary", d===activeDays);
+        btn.classList.toggle("mv-btn-secondary", d!==activeDays);
+      });
+      const sub = document.getElementById("mv-chart-sub");
+      if(sub) sub.textContent = `Utolsó ${activeDays} nap`;
+    }
+
+    // ✅ ÚJ: mindig építsünk teljes idősorozatot (hiányzó napok = 0)
+    function toYMD(dateObj){
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth()+1).padStart(2,"0");
+      const d = String(dateObj.getDate()).padStart(2,"0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function buildDailySeries(dailyRows, days){
+      const rows = Array.isArray(dailyRows) ? dailyRows : [];
+      const map = new Map();
+      rows.forEach(r=>{
+        const key = String(r.date || "");
+        if(!key) return;
+        map.set(key, Number(r.count || 0));
+      });
+
+      const labels = [];
+      const values = [];
+
+      const today = new Date();
+      for(let i = days - 1; i >= 0; i--){
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const key = toYMD(d);
+        labels.push(key);
+        values.push(map.get(key) || 0);
+      }
+
+      return { labels, values };
+    }
+
+    function updateChartFromDaily(dailyRows, days){
+      const { labels, values } = buildDailySeries(dailyRows, days);
+
+      const canvas = document.getElementById("mv-linechart");
+      drawLineChart(canvas, labels, values);
+
+      const total = sum(values);
+      const avg = values.length ? (total / values.length) : 0;
+
+      const peak = values.length ? Math.max(...values) : 0;
+      const peakIdx = values.length ? values.indexOf(peak) : -1;
+
+      const kAvg = document.getElementById("kpi-avg");
+      const kPeak = document.getElementById("kpi-peak");
+      const kLast7 = document.getElementById("kpi-last7");
+      const kWow = document.getElementById("kpi-wow");
+
+      if(kAvg) kAvg.textContent = avg.toFixed(1);
+      if(kPeak) kPeak.textContent = peakIdx>=0 ? `${labels[peakIdx]} • ${peak} kérés` : "-";
+
+      const last7 = sum(values.slice(-7));
+      const prev7 = sum(values.slice(-14, -7));
+      if(kLast7) kLast7.textContent = String(last7);
+
+      if(kWow){
+        if(values.length >= 14 && prev7 > 0){
+          const diff = ((last7 - prev7) / prev7) * 100;
+          kWow.textContent = `Előző 7 naphoz képest: ${diff>=0?"+":""}${diff.toFixed(0)}%`;
+          kWow.style.color = diff>=0 ? "#166534" : "#b91c1c";
+        }else{
+          kWow.textContent = "";
+          kWow.style.color = "";
+        }
+      }
+    }
   </script>
 </head>
 
@@ -103,8 +295,8 @@
         <div class="mv-small" id="subtitle">Betöltés...</div>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <button class="mv-btn mv-btn-secondary" id="btnRefresh">Frissítés</button>
-        <button class="mv-btn mv-btn-secondary" id="btnLogout">Kijelentkezés</button>
+        <button class="mv-btn mv-btn-secondary" id="btnRefresh" type="button">Frissítés</button>
+        <button class="mv-btn mv-btn-secondary" id="btnLogout" type="button">Kijelentkezés</button>
       </div>
     </div>
 
@@ -127,6 +319,45 @@
         </div>
       </div>
 
+      <!-- ===== CHART BLOCK ===== -->
+      <div class="mv-box" style="margin-top:12px; background:#f9fafb;">
+        <div class="mv-chart-top">
+          <div>
+            <div style="font-weight:800; margin-bottom:2px;">Napi bontás</div>
+            <div class="mv-chart-sub" id="mv-chart-sub">Utolsó 30 nap</div>
+          </div>
+
+          <div class="mv-chart-btns">
+            <!-- ✅ type="button" -->
+            <button class="mv-btn mv-btn-secondary" id="range-7" type="button">7 nap</button>
+            <button class="mv-btn mv-btn-secondary" id="range-30" type="button">30 nap</button>
+            <button class="mv-btn mv-btn-secondary" id="range-90" type="button">90 nap</button>
+          </div>
+        </div>
+
+        <div class="mv-chart-grid">
+          <div class="mv-chart-wrap">
+            <canvas id="mv-linechart" height="170"></canvas>
+          </div>
+
+          <div style="display:grid; gap:10px;">
+            <div class="mv-kpi-mini">
+              <div class="mv-small">Átlag / nap</div>
+              <div class="val" id="kpi-avg">-</div>
+            </div>
+            <div class="mv-kpi-mini">
+              <div class="mv-small">Csúcsnap</div>
+              <div style="font-size:14px; font-weight:800;" id="kpi-peak">-</div>
+            </div>
+            <div class="mv-kpi-mini">
+              <div class="mv-small">Utolsó 7 nap</div>
+              <div class="val" id="kpi-last7">-</div>
+              <div class="mv-small" id="kpi-wow" style="margin-top:2px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="mv-grid">
         <div class="mv-box">
           <h3 style="margin:0 0 8px 0; font-size:14px;">Top keresések</h3>
@@ -141,7 +372,7 @@
           <div id="budgetBox"></div>
         </div>
         <div class="mv-box">
-          <h3 style="margin:0 0 8px 0; font-size:14px;">Napi bontás (30 nap)</h3>
+          <h3 style="margin:0 0 8px 0; font-size:14px;">Napi bontás (táblázat)</h3>
           <table>
             <thead><tr><th style="width:45%;">Dátum</th><th>Kérések</th></tr></thead>
             <tbody id="dailyTbody"></tbody>
@@ -176,7 +407,7 @@
           <input id="fbUrl" placeholder="pl. https://sajatwebaruhaz.hu/termek/123" />
 
           <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
-            <button class="mv-btn mv-btn-primary" id="btnSend">Beküldés</button>
+            <button class="mv-btn mv-btn-primary" id="btnSend" type="button">Beküldés</button>
           </div>
 
           <div class="mv-status" id="fbStatus"></div>
@@ -201,6 +432,29 @@
       el.className = "mv-status " + (ok===true ? "ok" : ok===false ? "err" : "");
     }
 
+    // chart state
+    let MV_DAILY = [];
+    let MV_RANGE = 30;
+
+    function initChartControls(){
+      document.getElementById("range-7")?.addEventListener("click", (e)=>{
+        e.preventDefault();
+        MV_RANGE = 7; setRangeButtons(7); updateChartFromDaily(MV_DAILY, 7);
+      });
+      document.getElementById("range-30")?.addEventListener("click", (e)=>{
+        e.preventDefault();
+        MV_RANGE = 30; setRangeButtons(30); updateChartFromDaily(MV_DAILY, 30);
+      });
+      document.getElementById("range-90")?.addEventListener("click", (e)=>{
+        e.preventDefault();
+        MV_RANGE = 90; setRangeButtons(90); updateChartFromDaily(MV_DAILY, 90);
+      });
+
+      window.addEventListener("resize", ()=>{
+        updateChartFromDaily(MV_DAILY, MV_RANGE);
+      });
+    }
+
     async function loadStats(){
       const statusEl = document.getElementById("statsStatus");
       setStatus(statusEl, "Betöltés...", true);
@@ -218,14 +472,17 @@
       document.getElementById("kpiLast").textContent = fmtDateTime(stats.lastRequestAt);
 
       const daily = Array.isArray(stats.dailyCounts) ? stats.dailyCounts.slice() : [];
-      let sum30 = 0;
-      daily.forEach(d => sum30 += Number(d.count||0));
-      document.getElementById("kpi30").textContent = String(sum30);
+      MV_DAILY = daily.slice(); // save for chart
+
+      // ✅ last 30 nap KPI: biztosan 30 napra számol (hiányzó napok = 0)
+      const series30 = buildDailySeries(MV_DAILY, 30);
+      document.getElementById("kpi30").textContent = String(sum(series30.values));
 
       renderPills(document.getElementById("freeTextBox"), topEntries(stats.freeTextCount||{}, 12), "Még nincs keresés (free_text).");
       renderPills(document.getElementById("interestsBox"), topEntries(stats.interestsCount||{}, 18), "Még nincs kulcsszó.");
       renderPills(document.getElementById("budgetBox"), Object.entries(stats.priceBuckets||{}), "Nincs budget adat.");
 
+      // table (kept)
       const tbody = document.getElementById("dailyTbody");
       tbody.innerHTML = "";
       daily.sort((a,b)=> String(a.date).localeCompare(String(b.date)));
@@ -238,6 +495,15 @@
           tbody.appendChild(tr);
         });
       }
+
+      // chart init/update
+      if (!window.__mvChartInit) {
+        window.__mvChartInit = true;
+        initChartControls();
+      }
+      if (!MV_RANGE) MV_RANGE = 30;
+      setRangeButtons(MV_RANGE);
+      updateChartFromDaily(MV_DAILY, MV_RANGE);
 
       setStatus(statusEl, "", null);
     }

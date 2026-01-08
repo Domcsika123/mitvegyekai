@@ -75,6 +75,30 @@
     .pill-open{background:#fee2e2;color:#991b1b;}
     .pill-in{background:#ffedd5;color:#9a3412;}
     .pill-res{background:#dcfce7;color:#166534;}
+
+    /* ===== EMBED mód (admin.html iframe) ===== */
+    html.mv-embed body{
+    padding: 0 !important;
+    background: transparent !important;
+    }
+    html.mv-embed .mv-container{
+    max-width: none !important;
+    margin: 0 !important;
+    }
+    html.mv-embed .mv-topbar{
+    display: none !important; /* a belső "Vissza/Frissítés" fejléc eltűnik */
+    }
+    html.mv-embed .mv-card{
+    background: transparent !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    }
+    html.mv-embed table{
+    margin-top: 0 !important;
+    }
+
   </style>
 
   <script>
@@ -121,6 +145,12 @@
       return `<span class="mv-pill">${escapeHtml(status)}</span>`;
     }
   </script>
+  <script>
+  (function () {
+    const isEmbed = new URLSearchParams(location.search).get("embed") === "1";
+    if (isEmbed) document.documentElement.classList.add("mv-embed");
+  })();
+</script>
 </head>
 <body>
   <div class="mv-container">

@@ -63,11 +63,15 @@
 
     .mv-button-link:hover { background: #1d4ed8; }
 
+    .mv-button-link-dark { background: #111827; }
+    .mv-button-link-dark:hover { background: #0b1220; }
+
     .mv-input-row {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       margin-top: 8px;
+      align-items: center;
     }
 
     .mv-input-group {
@@ -83,14 +87,17 @@
       margin-bottom: 4px;
     }
 
-    .mv-input-group input {
+    .mv-input-group input,
+    .mv-input-group select {
       border-radius: 8px;
       border: 1px solid #d1d5db;
       padding: 6px 8px;
       font-size: 13px;
+      background: #fff;
     }
 
-    .mv-input-group input:focus {
+    .mv-input-group input:focus,
+    .mv-input-group select:focus {
       outline: none;
       border-color: #2563eb;
       box-shadow: 0 0 0 1px #2563eb33;
@@ -149,6 +156,7 @@
       justify-content:space-between;
       gap:12px;
       margin-bottom: 10px;
+      flex-wrap: wrap;
     }
 
     .mv-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
@@ -168,9 +176,65 @@
     .mv-pill.blocked { background:#fee2e2; color:#991b1b; }
     .mv-pill.active { background:#dcfce7; color:#166534; }
 
-    /* ====== MOBIL FIX v3 + KÖZÉPRE IGAZÍTÁS (nincs vízszintes scroll, kártyás táblázat) ====== */
+    /* ===== Tabs ===== */
+    .mv-tabs{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin: 10px 0 16px 0;
+    }
+    .mv-tab{
+      border:1px solid #e5e7eb;
+      background:#fff;
+      color:#111827;
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:13px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .mv-tab:hover{ background:#f9fafb; }
+    .mv-tab.active{
+      background:#2563eb;
+      border-color:#2563eb;
+      color:#fff;
+      font-weight:700;
+    }
+    .mv-tab-panel{ display:none; }
+    .mv-tab-panel.active{ display:block; }
+
+    /* ===== Pager ===== */
+    .mv-pager{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top: 10px;
+    }
+    .mv-pager-left{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .mv-pager-right{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .mv-pager-info{ font-size:13px; color:#4b5563; }
+
+    /* ===== Bejelentések iframe ===== */
+    .mv-iframe-wrap{
+      width:100%;
+      height: calc(100vh - 240px);
+      min-height: 520px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      overflow:hidden;
+      background:#fff;
+    }
+    .mv-iframe{
+      width:100%;
+      height:100%;
+      border:0;
+      display:block;
+    }
+
+    /* ====== MOBIL FIX v3 ====== */
     @media (max-width: 640px) {
-      /* iOS overflow + “nem középen van” fix */
       *, *::before, *::after { box-sizing: border-box !important; }
       body { padding: 14px !important; overflow-x: hidden !important; }
 
@@ -186,10 +250,9 @@
         padding: 14px 14px !important;
       }
 
-      /* táblázat -> kártyás lista */
       table{
         width: 100% !important;
-        border-collapse: collapse !important;   /* border-spacing kivesz: ez is tud eltolni iOS-en */
+        border-collapse: collapse !important;
         table-layout: auto !important;
         margin: 0 !important;
       }
@@ -203,7 +266,7 @@
         border-radius:14px;
         padding:10px 12px;
         box-shadow:0 6px 18px rgba(0,0,0,0.05);
-        margin: 0 0 12px 0 !important; /* spacing így, nem border-spacinggel */
+        margin: 0 0 12px 0 !important;
       }
 
       td{
@@ -223,7 +286,6 @@
         margin-bottom:4px;
       }
 
-      /* CÍMKÉK */
       #catalog-table tbody tr td:nth-child(1)::before { content: "site_key"; }
       #catalog-table tbody tr td:nth-child(2)::before { content: "Termékek száma"; }
       #catalog-table tbody tr td:nth-child(3)::before { content: "Teszt és műveletek"; }
@@ -234,7 +296,6 @@
       #stats-table tbody tr td:nth-child(1)::before { content: "site_key"; }
       #stats-table tbody tr td:nth-child(2)::before { content: "Műveletek"; }
 
-      /* gombok mobilon: full width */
       .mv-actions{
         display:flex;
         flex-direction:column;
@@ -251,16 +312,18 @@
         justify-content:center;
       }
 
-      /* AKTÍV badge */
       .mv-pill{ margin-left:0 !important; margin-top:6px; }
+
+      .mv-iframe-wrap{
+        height: calc(100vh - 270px);
+        min-height: 520px;
+      }
     }
   </style>
 
-  <!-- PapaParse a CSV feldolgozáshoz a böngészőben -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
   <script>
-    // ✅ AUTH: admin token ellenőrzés azonnal
     (function () {
       const token = localStorage.getItem("mv_admin_token");
       if (!token) {
@@ -270,7 +333,6 @@
       window.MV_ADMIN_TOKEN = token;
     })();
 
-    // ✅ adminFetch wrapper: minden admin API hívás automatikusan tokennel megy
     async function adminFetch(url, options) {
       const token = window.MV_ADMIN_TOKEN;
       const opts = options || {};
@@ -296,142 +358,253 @@
     }
   </script>
 </head>
+
 <body>
   <div class="mv-container">
     <div class="mv-topbar">
       <div>
         <h1>Mitvegyek.ai – Admin</h1>
-        <p class="mv-small">
-          Katalógusok, partnerek, statisztikák.
-        </p>
+        <p class="mv-small">Katalógusok, partnerek, statisztikák.</p>
       </div>
       <button class="mv-btn mv-btn-secondary" onclick="adminLogout()">Kijelentkezés</button>
     </div>
 
-    <!-- Webshop-katalógusok -->
-    <div class="mv-card">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-        <h2 style="margin:0;">Webshop-katalógusok</h2>
-
-        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
-          <a href="/widget-editor.html" class="mv-button-link">Widget szerkesztő</a>
-          <a href="/admin-feedback.html" class="mv-button-link">Bejelentések</a>
-        </div>
-      </div>
-
-
-      <table id="catalog-table">
-        <thead>
-          <tr>
-            <th style="width: 22%;">site_key</th>
-            <th style="width: 18%;">Termékek száma</th>
-            <th style="width: 60%;">Teszt és műveletek</th>
-          </tr>
-        </thead>
-        <tbody id="catalog-tbody"></tbody>
-      </table>
+    <!-- TABS -->
+    <div class="mv-tabs" id="tabs">
+      <button class="mv-tab" data-tab="tab-catalogs">Katalógusok</button>
+      <button class="mv-tab" data-tab="tab-csv">CSV import</button>
+      <button class="mv-tab" data-tab="tab-partners">Partnerek</button>
+      <button class="mv-tab" data-tab="tab-stats">Statisztika</button>
+      <button class="mv-tab" data-tab="tab-feedback">Bejelentések</button>
     </div>
 
+    <!-- ================= TAB: KATALÓGUSOK ================= -->
+    <div class="mv-tab-panel" id="tab-catalogs">
+      <div class="mv-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <h2 style="margin:0;">Webshop-katalógusok</h2>
 
-    <!-- CSV import -->
-    <div class="mv-card">
-      <h2>Termékek importálása CSV-ből</h2>
-      <p class="mv-small">
-        A <strong>product_id</strong>, <strong>name</strong> és <strong>price</strong> mezők kötelezők.
-      </p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+            <a href="/widget-editor.html" class="mv-button-link">Widget szerkesztő</a>
+          </div>
+        </div>
 
-      <div class="mv-input-row">
-        <div class="mv-input-group" style="max-width: 220px;">
-          <label for="csv-site-key">site_key</label>
-          <input id="csv-site-key" type="text" />
+        <div class="mv-input-row" style="margin-top:12px;">
+          <div class="mv-input-group" style="max-width: 280px;">
+            <label for="catalog-query">Keresés (site_key)</label>
+            <input id="catalog-query" type="text" />
+          </div>
+
+          <div class="mv-input-group" style="max-width: 180px;">
+            <label for="catalog-perpage">Sor / oldal</label>
+            <select id="catalog-perpage">
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <table id="catalog-table">
+          <thead>
+            <tr>
+              <th style="width: 22%;">site_key</th>
+              <th style="width: 18%;">Termékek száma</th>
+              <th style="width: 60%;">Teszt és műveletek</th>
+            </tr>
+          </thead>
+          <tbody id="catalog-tbody"></tbody>
+        </table>
+
+        <div class="mv-pager">
+          <div class="mv-pager-left">
+            <button class="mv-btn mv-btn-secondary" id="catalog-prev">Előző</button>
+            <button class="mv-btn mv-btn-secondary" id="catalog-next">Következő</button>
+          </div>
+          <div class="mv-pager-right">
+            <span class="mv-pager-info" id="catalog-pager-info"></span>
+          </div>
         </div>
       </div>
-
-      <div class="mv-file-label">CSV fájl:</div>
-      <input id="csv-file" type="file" accept=".csv,text/csv" />
-
-      <div class="mv-input-row">
-        <div class="mv-input-group">
-          <label for="col-id">product_id oszlop *</label>
-          <input id="col-id" type="text" placeholder="pl. product_id" />
-        </div>
-        <div class="mv-input-group">
-          <label for="col-name">name oszlop *</label>
-          <input id="col-name" type="text" placeholder="pl. name" />
-        </div>
-        <div class="mv-input-group">
-          <label for="col-price">price oszlop *</label>
-          <input id="col-price" type="text" placeholder="pl. price" />
-        </div>
-      </div>
-
-      <div class="mv-input-row">
-        <div class="mv-input-group">
-          <label for="col-category">category oszlop</label>
-          <input id="col-category" type="text" placeholder="pl. category" />
-        </div>
-        <div class="mv-input-group">
-          <label for="col-description">description oszlop</label>
-          <input id="col-description" type="text" placeholder="pl. description" />
-        </div>
-      </div>
-
-      <div class="mv-input-row">
-        <div class="mv-input-group">
-          <label for="col-url">product_url oszlop</label>
-          <input id="col-url" type="text" placeholder="pl. product_url" />
-        </div>
-        <div class="mv-input-group">
-          <label for="col-image">image_url oszlop</label>
-          <input id="col-image" type="text" placeholder="pl. image_url" />
-        </div>
-      </div>
-
-      <button id="csv-import-btn" class="mv-btn mv-btn-primary">CSV importálása</button>
-      <div id="csv-status" class="mv-status"></div>
     </div>
 
-    <!-- Partnerek -->
-    <div class="mv-card">
-      <h2>Partnerek kezelése</h2>
+    <!-- ================= TAB: CSV IMPORT ================= -->
+    <div class="mv-tab-panel" id="tab-csv">
+      <div class="mv-card">
+        <h2>Termékek importálása CSV-ből</h2>
+        <p class="mv-small">
+          A <strong>product_id</strong>, <strong>name</strong> és <strong>price</strong> mezők kötelezők.
+        </p>
 
-      <div class="mv-input-row">
-        <div class="mv-input-group" style="max-width: 260px;">
-          <label for="partner-name">Új partner neve</label>
-          <input id="partner-name" type="text" />
+        <div class="mv-input-row">
+          <div class="mv-input-group" style="max-width: 220px;">
+            <label for="csv-site-key">site_key</label>
+            <input id="csv-site-key" type="text" />
+          </div>
+        </div>
+
+        <div class="mv-file-label">CSV fájl:</div>
+        <input id="csv-file" type="file" accept=".csv,text/csv" />
+
+        <div class="mv-input-row">
+          <div class="mv-input-group">
+            <label for="col-id">product_id oszlop *</label>
+            <input id="col-id" type="text" placeholder="pl. product_id" />
+          </div>
+          <div class="mv-input-group">
+            <label for="col-name">name oszlop *</label>
+            <input id="col-name" type="text" placeholder="pl. name" />
+          </div>
+          <div class="mv-input-group">
+            <label for="col-price">price oszlop *</label>
+            <input id="col-price" type="text" placeholder="pl. price" />
+          </div>
+        </div>
+
+        <div class="mv-input-row">
+          <div class="mv-input-group">
+            <label for="col-category">category oszlop</label>
+            <input id="col-category" type="text" placeholder="pl. category" />
+          </div>
+          <div class="mv-input-group">
+            <label for="col-description">description oszlop</label>
+            <input id="col-description" type="text" placeholder="pl. description" />
+          </div>
+        </div>
+
+        <div class="mv-input-row">
+          <div class="mv-input-group">
+            <label for="col-url">product_url oszlop</label>
+            <input id="col-url" type="text" placeholder="pl. product_url" />
+          </div>
+          <div class="mv-input-group">
+            <label for="col-image">image_url oszlop</label>
+            <input id="col-image" type="text" placeholder="pl. image_url" />
+          </div>
+        </div>
+
+        <button id="csv-import-btn" class="mv-btn mv-btn-primary">CSV importálása</button>
+        <div id="csv-status" class="mv-status"></div>
+      </div>
+    </div>
+
+    <!-- ================= TAB: PARTNEREK ================= -->
+    <div class="mv-tab-panel" id="tab-partners">
+      <div class="mv-card">
+        <h2>Partnerek kezelése</h2>
+
+        <div class="mv-input-row">
+          <div class="mv-input-group" style="max-width: 260px;">
+            <label for="partner-name">Új partner neve</label>
+            <!-- ✅ FIX: ez volt elírva -->
+            <input id="partner-name" type="text" />
+          </div>
+        </div>
+
+        <button id="partner-create-btn" class="mv-btn mv-btn-primary">Új partner létrehozása</button>
+        <div id="partner-status" class="mv-status"></div>
+
+        <h3 style="margin-top: 18px;">Partnerek listája</h3>
+
+        <div class="mv-input-row" style="margin-top:10px;">
+          <div class="mv-input-group" style="max-width: 280px;">
+            <label for="partner-query">Keresés (név vagy site_key)</label>
+            <input id="partner-query" type="text" />
+          </div>
+
+          <div class="mv-input-group" style="max-width: 180px;">
+            <label for="partner-perpage">Sor / oldal</label>
+            <select id="partner-perpage">
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <table id="partner-table">
+          <thead>
+            <tr>
+              <th style="width: 40%;">Név</th>
+              <th style="width: 60%;">Műveletek</th>
+            </tr>
+          </thead>
+          <tbody id="partner-tbody"></tbody>
+        </table>
+
+        <div class="mv-pager">
+          <div class="mv-pager-left">
+            <button class="mv-btn mv-btn-secondary" id="partner-prev">Előző</button>
+            <button class="mv-btn mv-btn-secondary" id="partner-next">Következő</button>
+          </div>
+          <div class="mv-pager-right">
+            <span class="mv-pager-info" id="partner-pager-info"></span>
+          </div>
         </div>
       </div>
-
-      <button id="partner-create-btn" class="mv-btn mv-btn-primary">Új partner létrehozása</button>
-      <div id="partner-status" class="mv-status"></div>
-
-      <h3 style="margin-top: 18px;">Partnerek listája</h3>
-
-      <table id="partner-table">
-        <thead>
-          <tr>
-            <th style="width: 40%;">Név</th>
-            <th style="width: 60%;">Műveletek</th>
-          </tr>
-        </thead>
-        <tbody id="partner-tbody"></tbody>
-      </table>
     </div>
 
-    <!-- Statisztika áttekintés -->
-    <div class="mv-card">
-      <h2>Ajánláskérések statisztikája</h2>
+    <!-- ================= TAB: STATISZTIKA ================= -->
+    <div class="mv-tab-panel" id="tab-stats">
+      <div class="mv-card">
+        <h2>Ajánláskérések statisztikája</h2>
 
-      <table id="stats-table">
-        <thead>
-          <tr>
-            <th>site_key</th>
-            <th>Műveletek</th>
-          </tr>
-        </thead>
-        <tbody id="stats-tbody"></tbody>
-      </table>
+        <div class="mv-input-row" style="margin-top:12px;">
+          <div class="mv-input-group" style="max-width: 280px;">
+            <label for="stats-query">Keresés (site_key)</label>
+            <input id="stats-query" type="text" />
+          </div>
+
+          <div class="mv-input-group" style="max-width: 180px;">
+            <label for="stats-perpage">Sor / oldal</label>
+            <select id="stats-perpage">
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <table id="stats-table">
+          <thead>
+            <tr>
+              <th>site_key</th>
+              <th>Műveletek</th>
+            </tr>
+          </thead>
+          <tbody id="stats-tbody"></tbody>
+        </table>
+
+        <div class="mv-pager">
+          <div class="mv-pager-left">
+            <button class="mv-btn mv-btn-secondary" id="stats-prev">Előző</button>
+            <button class="mv-btn mv-btn-secondary" id="stats-next">Következő</button>
+          </div>
+          <div class="mv-pager-right">
+            <span class="mv-pager-info" id="stats-pager-info"></span>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- ================= TAB: BEJELENTÉSEK ================= -->
+    <div class="mv-tab-panel" id="tab-feedback">
+      <div class="mv-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>
+            <h2 style="margin:0;">Bejelentések</h2>
+            <div class="mv-small">Partner visszajelzések / hibák kezelése</div>
+          </div>
+
+          <a class="mv-button-link" id="feedback-open" target="_blank" rel="noopener noreferrer">Megnyitás új lapon</a>
+        </div>
+
+        <div class="mv-iframe-wrap" style="margin-top:12px;">
+          <iframe class="mv-iframe" id="feedback-iframe" title="Bejelentések"></iframe>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script>
@@ -446,35 +619,191 @@
       if (ok === false) el.classList.add("mv-status-error");
     }
 
+    function escapeHtml(s) {
+      return String(s || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+    function paginate(items, page, perPage) {
+      const total = items.length;
+      const pages = Math.max(1, Math.ceil(total / perPage));
+      const p = clamp(page, 1, pages);
+      const start = (p - 1) * perPage;
+      const end = start + perPage;
+      return { page: p, pages, total, slice: items.slice(start, end) };
+    }
+
+    /* ===== Tabs ===== */
+    const TAB_KEY = "mv_admin_active_tab";
+
+    // ✅ Bejelentések: teljes oldal új lapon, iframe-ben embed mód
+    const FEEDBACK_PAGE = "/admin-feedback.html";
+    const FEEDBACK_EMBED = "/admin-feedback.html?embed=1";
+
+    const iframe = safeGet("feedback-iframe");
+    const openLink = safeGet("feedback-open");
+    if (openLink) openLink.href = FEEDBACK_PAGE;
+
+    function ensureFeedbackIframeLoaded(){
+      if (!iframe) return;
+      if (iframe.dataset.loaded === "1") return;
+      iframe.src = FEEDBACK_EMBED;       // ✅ embed mód
+      iframe.dataset.loaded = "1";
+    }
+
+    function setActiveTab(tabId){
+      const tabs = Array.from(document.querySelectorAll(".mv-tab"));
+      const panels = Array.from(document.querySelectorAll(".mv-tab-panel"));
+      tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === tabId));
+      panels.forEach(p => p.classList.toggle("active", p.id === tabId));
+      sessionStorage.setItem(TAB_KEY, tabId);
+
+      // ✅ csak akkor töltsük be az iframe-et, ha tényleg megnyitod a tabot
+      if (tabId === "tab-feedback") ensureFeedbackIframeLoaded();
+    }
+
+    function initTabs(){
+      const tabs = Array.from(document.querySelectorAll(".mv-tab"));
+      tabs.forEach(btn => btn.addEventListener("click", () => setActiveTab(btn.dataset.tab)));
+
+      const saved = sessionStorage.getItem(TAB_KEY);
+      setActiveTab(saved || "tab-catalogs");
+    }
+
     // ✅ site_key -> partner (api_key + blocked)
     let partnersBySiteKey = new Map();
     let validSiteKeys = new Set();
 
-    async function loadPartners() {
-      const tbody = safeGet("partner-tbody");
+    // nyers listák
+    let CATALOGS_ALL = [];
+    let PARTNERS_ALL = [];
+    let STATS_ALL = [];
+
+    // UI state
+    const state = {
+      catalogs: { query: "", perPage: 25, page: 1 },
+      partners: { query: "", perPage: 25, page: 1 },
+      stats:    { query: "", perPage: 25, page: 1 },
+    };
+
+    function renderCatalogs(){
+      const tbody = safeGet("catalog-tbody");
+      const info = safeGet("catalog-pager-info");
       if (!tbody) return;
-      tbody.innerHTML = "<tr><td colspan='2'>Betöltés...</td></tr>";
 
-      try {
-        const response = await adminFetch("/api/admin/partners");
-        if (!response || !response.ok) throw new Error("Nem sikerült lekérni a partnereket.");
+      const q = (state.catalogs.query || "").toLowerCase().trim();
+      const filtered = q
+        ? CATALOGS_ALL.filter(c => String(c.siteKey || "").toLowerCase().includes(q))
+        : CATALOGS_ALL.slice();
 
-        const data = await response.json();
-        const partners = data.partners || [];
+      const paged = paginate(filtered, state.catalogs.page, state.catalogs.perPage);
+      state.catalogs.page = paged.page;
 
-        partnersBySiteKey = new Map();
-        partners.forEach(p => partnersBySiteKey.set(p.site_key, p));
-        validSiteKeys = new Set(partners.map(p => p.site_key));
+      tbody.innerHTML = "";
 
-        if (partners.length === 0) {
-          tbody.innerHTML = "<tr><td colspan='2'>Még nincs partner létrehozva.</td></tr>";
-          return;
-        }
-
+      if (paged.total === 0) {
+        tbody.innerHTML = "<tr><td colspan='3'>Nincs betöltött katalógus.</td></tr>";
+      } else {
         const origin = window.location.origin;
-        tbody.innerHTML = "";
 
-        partners.forEach((p) => {
+        paged.slice.forEach((cat) => {
+          const tr = document.createElement("tr");
+
+          const tdKey = document.createElement("td");
+          tdKey.textContent = cat.siteKey;
+          tr.appendChild(tdKey);
+
+          const tdCount = document.createElement("td");
+          tdCount.textContent = String(cat.productCount);
+          tr.appendChild(tdCount);
+
+          const tdTest = document.createElement("td");
+
+          const partner = partnersBySiteKey.get(cat.siteKey);
+          const apiKey = partner && partner.api_key ? String(partner.api_key) : "";
+
+          const linkDemo = document.createElement("a");
+          const qs = new URLSearchParams();
+          qs.set("site_key", cat.siteKey);
+          if (apiKey) qs.set("api_key", apiKey);
+
+          linkDemo.href = `${origin}/demo.html?${qs.toString()}`;
+          linkDemo.target = "_blank";
+          linkDemo.rel = "noopener noreferrer";
+          linkDemo.className = "mv-button-link";
+          linkDemo.textContent = apiKey ? "Widget teszt" : "Widget teszt (nincs api_key)";
+          tdTest.appendChild(linkDemo);
+
+          const delBtn = document.createElement("button");
+          delBtn.className = "mv-inline-btn";
+          delBtn.textContent = "Katalógus törlése";
+          delBtn.addEventListener("click", async () => {
+            const sure = confirm(`Biztosan törlöd ezt a katalógust?\n\nsite_key: ${cat.siteKey}`);
+            if (!sure) return;
+
+            try {
+              const res = await adminFetch(`/api/admin/catalogs/${encodeURIComponent(cat.siteKey)}`, {
+                method: "DELETE"
+              });
+              if (!res || !res.ok) {
+                const err = await (res ? res.json().catch(() => ({})) : Promise.resolve({}));
+                throw new Error(err.error || "Ismeretlen hiba");
+              }
+
+              await loadCatalogs();
+              await loadStatsOverview();
+            } catch (e) {
+              console.error(e);
+              alert("Hiba a katalógus törlésekor: " + e.message);
+            }
+          });
+          tdTest.appendChild(delBtn);
+
+          tr.appendChild(tdTest);
+          tbody.appendChild(tr);
+        });
+      }
+
+      const start = paged.total === 0 ? 0 : ((paged.page - 1) * state.catalogs.perPage + 1);
+      const end = paged.total === 0 ? 0 : Math.min(paged.page * state.catalogs.perPage, paged.total);
+      if (info) info.textContent = `Találatok: ${paged.total} • ${start}-${end} • ${paged.page}/${paged.pages} oldal`;
+
+      const prev = safeGet("catalog-prev");
+      const next = safeGet("catalog-next");
+      if (prev) prev.disabled = paged.page <= 1;
+      if (next) next.disabled = paged.page >= paged.pages;
+    }
+
+    function renderPartners(){
+      const tbody = safeGet("partner-tbody");
+      const info = safeGet("partner-pager-info");
+      if (!tbody) return;
+
+      const q = (state.partners.query || "").toLowerCase().trim();
+      const filtered = q
+        ? PARTNERS_ALL.filter(p =>
+            String(p.name || "").toLowerCase().includes(q) ||
+            String(p.site_key || "").toLowerCase().includes(q)
+          )
+        : PARTNERS_ALL.slice();
+
+      const paged = paginate(filtered, state.partners.page, state.partners.perPage);
+      state.partners.page = paged.page;
+
+      tbody.innerHTML = "";
+
+      if (paged.total === 0) {
+        tbody.innerHTML = "<tr><td colspan='2'>Még nincs partner létrehozva.</td></tr>";
+      } else {
+        const origin = window.location.origin;
+
+        paged.slice.forEach((p) => {
           const tr = document.createElement("tr");
 
           const tdName = document.createElement("td");
@@ -484,7 +813,6 @@
               ${p.blocked ? "BLOKKOLVA" : "AKTÍV"}
             </span>
           `;
-
           tr.appendChild(tdName);
 
           const tdActions = document.createElement("td");
@@ -554,126 +882,39 @@
           tr.appendChild(tdActions);
           tbody.appendChild(tr);
         });
-      } catch (err) {
-        console.error(err);
-        tbody.innerHTML = "<tr><td colspan='2'>Hiba történt a partnerek betöltése közben.</td></tr>";
       }
+
+      const start = paged.total === 0 ? 0 : ((paged.page - 1) * state.partners.perPage + 1);
+      const end = paged.total === 0 ? 0 : Math.min(paged.page * state.partners.perPage, paged.total);
+      if (info) info.textContent = `Találatok: ${paged.total} • ${start}-${end} • ${paged.page}/${paged.pages} oldal`;
+
+      const prev = safeGet("partner-prev");
+      const next = safeGet("partner-next");
+      if (prev) prev.disabled = paged.page <= 1;
+      if (next) next.disabled = paged.page >= paged.pages;
     }
 
-    async function loadCatalogs() {
-      const tbody = safeGet("catalog-tbody");
-      if (!tbody) return;
-      tbody.innerHTML = "<tr><td colspan='3'>Betöltés...</td></tr>";
-
-      try {
-        const response = await adminFetch("/api/admin/catalogs");
-        if (!response || !response.ok) throw new Error("Nem sikerült lekérni a katalógusokat.");
-
-        const data = await response.json();
-        const rawCatalogs = data.catalogs || [];
-
-        const catalogs = rawCatalogs.map((c) => {
-          const siteKey = c.siteKey || c.site_key || c.key || "ismeretlen";
-          const productCount =
-            typeof c.productCount === "number" ? c.productCount :
-            typeof c.count === "number" ? c.count : 0;
-          return { siteKey, productCount };
-        });
-
-        if (catalogs.length === 0) {
-          tbody.innerHTML = "<tr><td colspan='3'>Nincs betöltött katalógus.</td></tr>";
-          return;
-        }
-
-        const origin = window.location.origin;
-        tbody.innerHTML = "";
-
-        catalogs.forEach((cat) => {
-          const tr = document.createElement("tr");
-
-          const tdKey = document.createElement("td");
-          tdKey.textContent = cat.siteKey;
-          tr.appendChild(tdKey);
-
-          const tdCount = document.createElement("td");
-          tdCount.textContent = String(cat.productCount);
-          tr.appendChild(tdCount);
-
-          const tdTest = document.createElement("td");
-
-          const partner = partnersBySiteKey.get(cat.siteKey);
-          const apiKey = partner && partner.api_key ? String(partner.api_key) : "";
-
-          const linkDemo = document.createElement("a");
-          const qs = new URLSearchParams();
-          qs.set("site_key", cat.siteKey);
-          if (apiKey) qs.set("api_key", apiKey);
-
-          linkDemo.href = `${origin}/demo.html?${qs.toString()}`;
-          linkDemo.target = "_blank";
-          linkDemo.rel = "noopener noreferrer";
-          linkDemo.className = "mv-button-link";
-          linkDemo.textContent = apiKey ? "Widget teszt" : "Widget teszt (nincs api_key)";
-          tdTest.appendChild(linkDemo);
-
-          const delBtn = document.createElement("button");
-          delBtn.className = "mv-inline-btn";
-          delBtn.textContent = "Katalógus törlése";
-          delBtn.addEventListener("click", async () => {
-            const sure = confirm(`Biztosan törlöd ezt a katalógust?\n\nsite_key: ${cat.siteKey}`);
-            if (!sure) return;
-
-            try {
-              const res = await adminFetch(`/api/admin/catalogs/${encodeURIComponent(cat.siteKey)}`, {
-                method: "DELETE"
-              });
-              if (!res || !res.ok) {
-                const err = await (res ? res.json().catch(() => ({})) : Promise.resolve({}));
-                throw new Error(err.error || "Ismeretlen hiba");
-              }
-
-              await loadCatalogs();
-              await loadStatsOverview();
-            } catch (e) {
-              console.error(e);
-              alert("Hiba a katalógus törlésekor: " + e.message);
-            }
-          });
-          tdTest.appendChild(delBtn);
-
-          tr.appendChild(tdTest);
-          tbody.appendChild(tr);
-        });
-      } catch (err) {
-        console.error(err);
-        tbody.innerHTML = "<tr><td colspan='3'>Hiba történt a katalógusok betöltése közben.</td></tr>";
-      }
-    }
-
-    async function loadStatsOverview() {
+    function renderStats(){
       const tbody = safeGet("stats-tbody");
+      const info = safeGet("stats-pager-info");
       if (!tbody) return;
-      tbody.innerHTML = "<tr><td colspan='2'>Betöltés...</td></tr>";
 
-      try {
-        const res = await adminFetch("/api/admin/catalogs");
-        if (!res || !res.ok) throw new Error("Nem sikerült lekérni a katalógusokat.");
+      const q = (state.stats.query || "").toLowerCase().trim();
+      const filtered = q
+        ? STATS_ALL.filter(s => String(s.siteKey || "").toLowerCase().includes(q))
+        : STATS_ALL.slice();
 
-        const data = await res.json();
-        const rawCatalogs = data.catalogs || [];
-        const catalogs = rawCatalogs.map((c) => ({
-          siteKey: c.siteKey || c.site_key || c.key || "ismeretlen"
-        }));
+      const paged = paginate(filtered, state.stats.page, state.stats.perPage);
+      state.stats.page = paged.page;
 
-        if (catalogs.length === 0) {
-          tbody.innerHTML = "<tr><td colspan='2'>Nincs katalógus, ezért statisztika sem érhető el.</td></tr>";
-          return;
-        }
+      tbody.innerHTML = "";
 
+      if (paged.total === 0) {
+        tbody.innerHTML = "<tr><td colspan='2'>Nincs katalógus, ezért statisztika sem érhető el.</td></tr>";
+      } else {
         const origin = window.location.origin;
-        tbody.innerHTML = "";
 
-        catalogs.forEach((cat) => {
+        paged.slice.forEach((cat) => {
           const tr = document.createElement("tr");
 
           const tdKey = document.createElement("td");
@@ -692,9 +933,88 @@
 
           tbody.appendChild(tr);
         });
+      }
+
+      const start = paged.total === 0 ? 0 : ((paged.page - 1) * state.stats.perPage + 1);
+      const end = paged.total === 0 ? 0 : Math.min(paged.page * state.stats.perPage, paged.total);
+      if (info) info.textContent = `Találatok: ${paged.total} • ${start}-${end} • ${paged.page}/${paged.pages} oldal`;
+
+      const prev = safeGet("stats-prev");
+      const next = safeGet("stats-next");
+      if (prev) prev.disabled = paged.page <= 1;
+      if (next) next.disabled = paged.page >= paged.pages;
+    }
+
+    async function loadPartners() {
+      const tbody = safeGet("partner-tbody");
+      if (tbody) tbody.innerHTML = "<tr><td colspan='2'>Betöltés...</td></tr>";
+
+      try {
+        const response = await adminFetch("/api/admin/partners");
+        if (!response || !response.ok) throw new Error("Nem sikerült lekérni a partnereket.");
+
+        const data = await response.json();
+        const partners = data.partners || [];
+
+        PARTNERS_ALL = partners;
+
+        partnersBySiteKey = new Map();
+        partners.forEach(p => partnersBySiteKey.set(p.site_key, p));
+        validSiteKeys = new Set(partners.map(p => p.site_key));
+
+        renderPartners();
       } catch (err) {
         console.error(err);
-        tbody.innerHTML = "<tr><td colspan='2'>Hiba történt a statisztika betöltése közben.</td></tr>";
+        if (tbody) tbody.innerHTML = "<tr><td colspan='2'>Hiba történt a partnerek betöltése közben.</td></tr>";
+      }
+    }
+
+    async function loadCatalogs() {
+      const tbody = safeGet("catalog-tbody");
+      if (tbody) tbody.innerHTML = "<tr><td colspan='3'>Betöltés...</td></tr>";
+
+      try {
+        const response = await adminFetch("/api/admin/catalogs");
+        if (!response || !response.ok) throw new Error("Nem sikerült lekérni a katalógusokat.");
+
+        const data = await response.json();
+        const rawCatalogs = data.catalogs || [];
+
+        const catalogs = rawCatalogs.map((c) => {
+          const siteKey = c.siteKey || c.site_key || c.key || "ismeretlen";
+          const productCount =
+            typeof c.productCount === "number" ? c.productCount :
+            typeof c.count === "number" ? c.count : 0;
+          return { siteKey, productCount };
+        });
+
+        CATALOGS_ALL = catalogs;
+        renderCatalogs();
+      } catch (err) {
+        console.error(err);
+        if (tbody) tbody.innerHTML = "<tr><td colspan='3'>Hiba történt a katalógusok betöltése közben.</td></tr>";
+      }
+    }
+
+    async function loadStatsOverview() {
+      const tbody = safeGet("stats-tbody");
+      if (tbody) tbody.innerHTML = "<tr><td colspan='2'>Betöltés...</td></tr>";
+
+      try {
+        const res = await adminFetch("/api/admin/catalogs");
+        if (!res || !res.ok) throw new Error("Nem sikerült lekérni a katalógusokat.");
+
+        const data = await res.json();
+        const rawCatalogs = data.catalogs || [];
+        const catalogs = rawCatalogs.map((c) => ({
+          siteKey: c.siteKey || c.site_key || c.key || "ismeretlen"
+        }));
+
+        STATS_ALL = catalogs;
+        renderStats();
+      } catch (err) {
+        console.error(err);
+        if (tbody) tbody.innerHTML = "<tr><td colspan='2'>Hiba történt a statisztika betöltése közben.</td></tr>";
       }
     }
 
@@ -868,144 +1188,163 @@
       });
     }
 
-    function escapeHtml(s) {
-      return String(s || "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+    function hookListControls(){
+      // catalogs
+      const cq = safeGet("catalog-query");
+      const cpp = safeGet("catalog-perpage");
+      const cprev = safeGet("catalog-prev");
+      const cnext = safeGet("catalog-next");
+
+      if (cq) cq.addEventListener("input", () => { state.catalogs.query = cq.value || ""; state.catalogs.page = 1; renderCatalogs(); });
+      if (cpp) cpp.addEventListener("change", () => { state.catalogs.perPage = Number(cpp.value) || 25; state.catalogs.page = 1; renderCatalogs(); });
+      if (cprev) cprev.addEventListener("click", () => { state.catalogs.page--; renderCatalogs(); });
+      if (cnext) cnext.addEventListener("click", () => { state.catalogs.page++; renderCatalogs(); });
+
+      // partners
+      const pq = safeGet("partner-query");
+      const ppp = safeGet("partner-perpage");
+      const pprev = safeGet("partner-prev");
+      const pnext = safeGet("partner-next");
+
+      if (pq) pq.addEventListener("input", () => { state.partners.query = pq.value || ""; state.partners.page = 1; renderPartners(); });
+      if (ppp) ppp.addEventListener("change", () => { state.partners.perPage = Number(ppp.value) || 25; state.partners.page = 1; renderPartners(); });
+      if (pprev) pprev.addEventListener("click", () => { state.partners.page--; renderPartners(); });
+      if (pnext) pnext.addEventListener("click", () => { state.partners.page++; renderPartners(); });
+
+      // stats
+      const sq = safeGet("stats-query");
+      const spp = safeGet("stats-perpage");
+      const sprev = safeGet("stats-prev");
+      const snext = safeGet("stats-next");
+
+      if (sq) sq.addEventListener("input", () => { state.stats.query = sq.value || ""; state.stats.page = 1; renderStats(); });
+      if (spp) spp.addEventListener("change", () => { state.stats.perPage = Number(spp.value) || 25; state.stats.page = 1; renderStats(); });
+      if (sprev) sprev.addEventListener("click", () => { state.stats.page--; renderStats(); });
+      if (snext) snext.addEventListener("click", () => { state.stats.page++; renderStats(); });
     }
 
     async function initAdmin() {
+      initTabs();
+      hookListControls();
+
       await loadPartners();
       await loadCatalogs();
       await loadStatsOverview();
+
       setupCsvImport();
       setupPartnerForm();
+
+      // ha a mentett tab a feedback volt, akkor betöltjük
+      const saved = sessionStorage.getItem(TAB_KEY);
+      if (saved === "tab-feedback") ensureFeedbackIframeLoaded();
     }
 
     window.addEventListener("DOMContentLoaded", initAdmin);
   </script>
 
-<script>
-  (function () {
-    const KEY = "mv_admin_scroll_y";
-    const ref = (document.referrer || "").toLowerCase();
+  <script>
+    (function () {
+      const KEY = "mv_admin_scroll_y";
+      const ref = (document.referrer || "").toLowerCase();
 
-    const cameFromSubpage =
-      ref.includes("/partner.html") ||
-      ref.includes("/stats.html");
+      const cameFromSubpage =
+        ref.includes("/partner.html") ||
+        ref.includes("/stats.html");
 
-    // ✅ pontos mentés kattintáskor
-    document.addEventListener("click", (e) => {
-      const el = e.target && e.target.closest ? e.target.closest("a,button") : null;
-      if (!el) return;
-      sessionStorage.setItem(KEY, String(window.scrollY || 0));
-    }, true);
+      document.addEventListener("click", (e) => {
+        const el = e.target && e.target.closest ? e.target.closest("a,button") : null;
+        if (!el) return;
+        sessionStorage.setItem(KEY, String(window.scrollY || 0));
+      }, true);
 
-    window.addEventListener("pagehide", () => {
-      sessionStorage.setItem(KEY, String(window.scrollY || 0));
-    });
-
-    // ✅ a böngésző saját scroll-visszaállítása OFF (különben duplán “ugrálhat”)
-    try {
-      if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-    } catch (_) {}
-
-    // Loginból / direkt megnyitásból: NE restore, mindig teteje
-    if (!cameFromSubpage) {
-      sessionStorage.removeItem(KEY);
-      window.scrollTo(0, 0);
-      return;
-    }
-
-    const saved = sessionStorage.getItem(KEY);
-    const y = saved !== null ? parseInt(saved, 10) : NaN;
-    if (Number.isNaN(y)) return;
-
-    const body = document.body;
-    const html = document.documentElement;
-
-    let locked = false;
-    let unlockTimer = null;
-    let observer = null;
-
-    function lockScroll() {
-      if (locked) return;
-      locked = true;
-
-      // fixáljuk a “nézetet” a mentett pozícióra → nem fog ugrálni miközben a DOM változik
-      body.style.position = "fixed";
-      body.style.top = `-${y}px`;
-      body.style.left = "0";
-      body.style.right = "0";
-      body.style.width = "100%";
-      body.style.overflow = "hidden";
-    }
-
-    function unlockScroll() {
-      if (!locked) return;
-      locked = false;
-
-      // visszaállítjuk a normál scrollt
-      const top = body.style.top;
-      body.style.position = "";
-      body.style.top = "";
-      body.style.left = "";
-      body.style.right = "";
-      body.style.width = "";
-      body.style.overflow = "";
-
-      // biztos: pontosan oda
-      const finalY = y; // mentett cél
-      window.scrollTo(0, finalY);
-
-      if (observer) {
-        observer.disconnect();
-        observer = null;
-      }
-      if (unlockTimer) {
-        clearTimeout(unlockTimer);
-        unlockTimer = null;
-      }
-    }
-
-    // DOM stabilitás figyelés: ha 220ms-ig nincs változás → elengedjük
-    function armUnlockWhenStable() {
-      const target = document.querySelector(".mv-container") || body;
-
-      const schedule = () => {
-        if (unlockTimer) clearTimeout(unlockTimer);
-        unlockTimer = setTimeout(() => {
-          unlockScroll();
-        }, 220);
-      };
-
-      observer = new MutationObserver(() => {
-        // minden DOM változásnál újraindítjuk az “elcsendesedés” órát
-        schedule();
+      window.addEventListener("pagehide", () => {
+        sessionStorage.setItem(KEY, String(window.scrollY || 0));
       });
 
-      observer.observe(target, { childList: true, subtree: true, attributes: true });
+      try {
+        if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+      } catch (_) {}
 
-      // indításkor is elindítjuk az órát (ha gyorsan kész van, gyorsan old)
-      schedule();
+      if (!cameFromSubpage) {
+        sessionStorage.removeItem(KEY);
+        window.scrollTo(0, 0);
+        return;
+      }
 
-      // failsafe: max 2.5s után akkor is oldjon (ne ragadjon be semmi)
-      setTimeout(() => unlockScroll(), 2500);
-    }
+      const saved = sessionStorage.getItem(KEY);
+      const y = saved !== null ? parseInt(saved, 10) : NaN;
+      if (Number.isNaN(y)) return;
 
-    function run() {
-      // azonnal lock (amint visszajöttünk), hogy ne látszódjon az ugrálás
-      lockScroll();
-      armUnlockWhenStable();
-    }
+      const body = document.body;
 
-    // pageshow: back/forward cache esetén is működjön
-    window.addEventListener("pageshow", run, { once: true });
-  })();
-</script>
+      let locked = false;
+      let unlockTimer = null;
+      let observer = null;
+
+      function lockScroll() {
+        if (locked) return;
+        locked = true;
+
+        body.style.position = "fixed";
+        body.style.top = `-${y}px`;
+        body.style.left = "0";
+        body.style.right = "0";
+        body.style.width = "100%";
+        body.style.overflow = "hidden";
+      }
+
+      function unlockScroll() {
+        if (!locked) return;
+        locked = false;
+
+        body.style.position = "";
+        body.style.top = "";
+        body.style.left = "";
+        body.style.right = "";
+        body.style.width = "";
+        body.style.overflow = "";
+
+        window.scrollTo(0, y);
+
+        if (observer) {
+          observer.disconnect();
+          observer = null;
+        }
+        if (unlockTimer) {
+          clearTimeout(unlockTimer);
+          unlockTimer = null;
+        }
+      }
+
+      function armUnlockWhenStable() {
+        const target = document.querySelector(".mv-container") || body;
+
+        const schedule = () => {
+          if (unlockTimer) clearTimeout(unlockTimer);
+          unlockTimer = setTimeout(() => {
+            unlockScroll();
+          }, 220);
+        };
+
+        observer = new MutationObserver(() => {
+          schedule();
+        });
+
+        observer.observe(target, { childList: true, subtree: true, attributes: true });
+
+        schedule();
+
+        setTimeout(() => unlockScroll(), 2500);
+      }
+
+      function run() {
+        lockScroll();
+        armUnlockWhenStable();
+      }
+
+      window.addEventListener("pageshow", run, { once: true });
+    })();
+  </script>
 
 </body>
 </html>
