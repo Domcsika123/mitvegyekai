@@ -342,14 +342,15 @@ router.post("/recommend", async (req, res) => {
     const candidatePoolProducts: any[] =
       rankedByEmbedding && rankedByEmbedding.length > 0 ? rankedByEmbedding.map((r) => r.product) : allProducts;
 
-    const topCandidates = candidatePoolProducts.slice(0, 40);
+    const topCandidates = candidatePoolProducts.slice(0, 20);
 
     let afterRules = filterProductsByRules(user, topCandidates);
     if (!afterRules || afterRules.length < 8) {
-      afterRules = topCandidates.slice(0, 25);
+      afterRules = topCandidates.slice(0, 15);
     }
 
-    const rr = await rerankWithLLM(user, afterRules);
+    // ✅ Rerank csak az első 10-12 terméken (gyorsabb válaszidő)
+    const rr = await rerankWithLLM(user, afterRules.slice(0, 12));
 
     const items = (rr.items || []).map((r) => ({
       product_id: (r.product as any).product_id,
