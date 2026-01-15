@@ -742,11 +742,11 @@
 
       .mv-widget-status {
         font-size: 13px; line-height: 1.45;
-        margin-top: 10px; padding: 10px 12px;
-        border-radius: 10px; font-weight: 700;
+        margin-top: 10px; padding: 0;
+        border-radius: 0; font-weight: 700;
       }
-      .mv-widget-status-error { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; }
-      .mv-widget-status-ok { color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; }
+      .mv-widget-status-error { color: #b91c1c; background: transparent; border: none; }
+      .mv-widget-status-ok { color: #166534; background: transparent; border: none; }
 
       @media (max-width: 768px), (pointer: coarse) {
         html:not(.mv-preview-panel):not(.mv-preview-bubble) .mv-widget-root{
