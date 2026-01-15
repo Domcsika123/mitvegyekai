@@ -7,6 +7,7 @@
   <style>
     body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 24px; background: #f3f4f6; }
     .mv-container { max-width: 900px; margin: 0 auto; }
+    .mv-topbar { margin-bottom: 16px; }
     .mv-card { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 18px 20px; margin-bottom: 18px; }
     .mv-small { font-size: 13px; color: #4b5563; }
     .mv-label { font-size: 12px; color: #6b7280; margin-top: 10px; }
@@ -48,6 +49,7 @@
     .mv-btn-danger { background: #ef4444; color: white; }
     .mv-btn-danger:hover { background: #dc2626; }
     .mv-btn-secondary { background: #e5e7eb; color: #111827; }
+    .mv-btn-secondary:hover { background: #d1d5db; }
 
     .mv-status { margin-top: 8px; font-size: 13px; }
     .mv-status-error { color: #b91c1c; }
@@ -69,6 +71,7 @@
       border-color: #2563eb;
       box-shadow: 0 0 0 2px rgba(37,99,235,0.15);
     }
+
   </style>
 
   <script>
@@ -99,13 +102,14 @@
 </head>
 <body>
   <div class="mv-container">
-    <div class="mv-card">
-      <h1>Partner részletek</h1>
-      <p class="mv-small">Itt látod a partner (webshop) API adatait, a domain whitelistet és a beágyazási kódot.</p>
-      <button id="back-btn" class="mv-btn mv-btn-secondary">← Vissza az adminhoz</button>
+    <div class="mv-topbar">
+      <button id="back-btn" class="mv-btn mv-btn-secondary">← Vissza a partnerekhez</button>
     </div>
 
     <div class="mv-card" id="partner-card">
+      <h1>Partner részletek</h1>
+      <p class="mv-small">Itt látod a partner (webshop) API adatait, a domain whitelistet és a beágyazási kódot.</p>
+
       <p class="mv-status" id="status"></p>
 
       <div id="partner-content" style="display:none;">
@@ -131,7 +135,6 @@
         <div>
           <div class="mv-label">Megengedett domainek (CORS whitelist)</div>
 
-          <!-- ✅ csak ennyi változott itt: kapott egy id-t -->
           <div class="mv-small" id="domains-help">
             Írhatsz soronként, vesszővel vagy szóközzel is (pl. <b>shop1.hu</b>, <b>www.shop1.hu</b>, <b>shop1.eu</b>).<br/>
             Teljes URL is jó (pl. <b>https://shop1.hu/akarmi</b>) — automatikusan hostra tisztítjuk.
@@ -163,6 +166,7 @@
     }
 
     document.getElementById("back-btn").addEventListener("click", () => {
+      sessionStorage.setItem('mv_admin_active_tab', 'tab-partners');
       window.location.href = "/admin.html";
     });
 
@@ -172,31 +176,18 @@
       el.className = "mv-status" + (ok === true ? " mv-status-ok" : ok === false ? " mv-status-error" : "");
     }
 
-    // ✅ rugalmas domain parsolás + tisztítás (URL/port/path levágás, kisbetű, duplikációk ki)
     function normalizeDomainToken(token) {
       let s = String(token || "").trim().toLowerCase();
       if (!s) return "";
-
-      // ha URL: vágjuk le a protokollt
       s = s.replace(/^https?:\/\//, "");
-
-      // vágjuk le a path/query/hash részt
       s = s.split("/")[0].split("?")[0].split("#")[0];
-
-      // vágjuk le a portot (pl. localhost:5173 -> localhost)
       s = s.split(":")[0];
-
-      // ha valaki véletlenül még mindig üres
       return s.trim();
     }
 
     function parseDomains(raw) {
       const text = String(raw || "");
-
-      // split: új sor + vessző + whitespace
       const tokens = text.split(/[\n,\s]+/g).map(normalizeDomainToken).filter(Boolean);
-
-      // duplikációk kiszedése (megtartjuk a sorrendet)
       const seen = new Set();
       const out = [];
       for (const t of tokens) {
@@ -208,14 +199,12 @@
       return out;
     }
 
-    // ✅ domains "Mentve" üzenet auto-eltüntetés (csak siker esetén)
     let domainsMsgTimer = null;
     function setDomainsMsg(text, ok) {
       const msg = document.getElementById("domains-msg");
       msg.textContent = text || "";
       msg.className = "mv-status" + (ok === true ? " mv-status-ok" : ok === false ? " mv-status-error" : "");
 
-      // csak a sikeres üzenetet tüntetjük el pár mp után
       if (ok === true && text) {
         if (domainsMsgTimer) clearTimeout(domainsMsgTimer);
         domainsMsgTimer = setTimeout(() => {
@@ -225,7 +214,6 @@
       }
     }
 
-    // ✅ példa domainek: site_key-ből csinálunk olvasható host példát
     function makeExampleBaseFromSiteKey(siteKey) {
       const sk = String(siteKey || "shop").trim().toLowerCase();
       const safe = sk.replace(/[^a-z0-9-]/g, "") || "shop";
@@ -238,7 +226,7 @@
 
       if (!siteKey) {
         setStatus("Hiányzó site_key a URL-ben.", false);
-        return;
+        return false;
       }
 
       setStatus("Betöltés...", null);
@@ -262,7 +250,6 @@
         document.getElementById("p-site-key").textContent = p.site_key;
         document.getElementById("p-api-key").textContent = p.api_key;
 
-        // ✅ itt a lényeg: domains help szöveg dinamikusan a site_key-hez
         const base = makeExampleBaseFromSiteKey(p.site_key);
         const help = document.getElementById("domains-help");
         if (help) {
@@ -290,11 +277,9 @@
           }
         };
 
-        // allowed domains textarea (megjelenítés: 1 sor = 1 domain)
         const domains = Array.isArray(p.allowed_domains) ? p.allowed_domains : [];
         document.getElementById("domains").value = domains.join("\n");
 
-        // save domains
         document.getElementById("save-domains-btn").onclick = async () => {
           setDomainsMsg("", null);
 
@@ -318,7 +303,6 @@
           }
         };
 
-        // rotate key
         document.getElementById("rotate-btn").onclick = async () => {
           if (!confirm("Biztosan új API kulcsot generálsz? A régi azonnal érvénytelen lesz.")) return;
 
@@ -348,12 +332,13 @@
 
         setStatus("", null);
         contentEl.style.display = "block";
+        return true;
       } catch (err) {
         console.error(err);
         setStatus(err.message || "Hiba történt.", false);
+        return false;
       }
     }
-
     loadPartner();
   </script>
 </body>

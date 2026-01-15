@@ -115,6 +115,105 @@
     }
 
     th { font-weight: 600; color: #374151; }
+
+    /* ✅ Mobilos responsív stílus */
+    @media (max-width: 640px) {
+      body {
+        padding: 12px !important;
+      }
+
+      .mv-container {
+        max-width: 100% !important;
+      }
+
+      .mv-card {
+        padding: 14px 12px !important;
+        margin-bottom: 12px !important;
+        border-radius: 10px !important;
+      }
+
+      h1 {
+        font-size: 18px !important;
+        margin: 0 0 6px 0 !important;
+      }
+
+      .mv-small {
+        font-size: 12px !important;
+      }
+
+      .mv-topbar {
+        margin-bottom: 12px !important;
+        gap: 8px !important;
+      }
+
+      .mv-btn {
+        padding: 5px 12px !important;
+        font-size: 12px !important;
+      }
+
+      /* ✅ KPI blokk */
+      .mv-kv {
+        grid-template-columns: 140px 1fr !important;
+        gap: 6px !important;
+        font-size: 12px !important;
+        margin-top: 8px !important;
+      }
+
+      .mv-kv strong {
+        font-size: 12px !important;
+      }
+
+      /* ✅ Grid 1 oszlopra mobilon */
+      .mv-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+        margin-top: 10px !important;
+      }
+
+      .mv-box {
+        padding: 10px !important;
+        border-radius: 8px !important;
+      }
+
+      .mv-box h3 {
+        font-size: 13px !important;
+        margin: 0 0 8px 0 !important;
+      }
+
+      /* ✅ Pillsek: wrappel jól nézzenek ki */
+      .mv-pill {
+        padding: 5px 8px !important;
+        border-radius: 6px !important;
+        font-size: 11px !important;
+        margin: 3px 4px 0 0 !important;
+      }
+
+      .mv-count {
+        padding: 1px 6px !important;
+        font-size: 10px !important;
+      }
+
+      /* ✅ Tábla */
+      table {
+        font-size: 12px !important;
+        margin-top: 8px !important;
+      }
+
+      th, td {
+        padding: 6px 4px !important;
+        font-size: 12px !important;
+      }
+
+      th {
+        font-size: 11px !important;
+      }
+
+      /* ✅ Code blokk */
+      code {
+        padding: 2px 5px !important;
+        font-size: 10px !important;
+      }
+    }
   </style>
 
   <script>
@@ -151,8 +250,8 @@
 <body>
   <div class="mv-container">
     <div class="mv-topbar">
-      <button class="mv-btn mv-btn-secondary" onclick="window.location.href='/admin.html'">
-        ← Vissza az adminhoz
+      <button class="mv-btn mv-btn-secondary" onclick="sessionStorage.setItem('mv_admin_active_tab', 'tab-stats'); window.location.href='/admin.html'">
+        ← Vissza a statisztikához
       </button>
     </div>
 

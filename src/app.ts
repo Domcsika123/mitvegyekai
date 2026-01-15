@@ -10,8 +10,9 @@ import { adminAuth } from "./middleware/adminAuth";
 
 const app = express();
 
-// Alap middleware-k
-app.use(express.json());
+// ✅ Alap middleware-k (emelt body limit nagy importokhoz)
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Statikus fájlok (demo.html, admin.html, widget.js, stb.)
 const publicDir = path.join(__dirname, "..", "public");

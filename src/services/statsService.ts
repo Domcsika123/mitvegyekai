@@ -1,5 +1,4 @@
 // src/services/statsService.ts
-
 import fs from "fs";
 import path from "path";
 import { UserContext } from "../models/UserContext";
@@ -9,6 +8,12 @@ export type DailyCount = {
   count: number;
 };
 
+export type DailyTiming = {
+  date: string; // 'YYYY-MM-DD'
+  sumMs: number; // összes idő ms-ban
+  count: number; // hány mérés
+};
+
 export type PriceBucketKey = "0-5000" | "5001-10000" | "10001-20000" | "20001+";
 
 export type SiteStats = {
@@ -16,15 +21,24 @@ export type SiteStats = {
   totalRequests: number;
   lastRequestAt?: string; // ISO string
 
-  // bővített statok
-  dailyCounts: DailyCount[]; // utolsó ~30 nap
-  interestsCount: { [interest: string]: number }; // érdeklődési körök
-  priceBuckets: { [bucket in PriceBucketKey]: number }; // budget eloszlás
+  // statok
+  dailyCounts: DailyCount[]; // utolsó ~MAX_DAYS nap
+  interestsCount: { [interest: string]: number };
+  priceBuckets: { [bucket in PriceBucketKey]: number };
 
-  // ÚJ: mire kerestek + demó statok
-  freeTextCount: { [query: string]: number }; // free_text top
+  freeTextCount: { [query: string]: number };
   genderCount: { [gender: string]: number };
   relationshipCount: { [rel: string]: number };
+
+  // ✅ ÚJ: válaszidő
+  responseTimeTotalMs: number;
+  responseTimeCount: number;
+  dailyResponseTimes: DailyTiming[]; // napra bontva
+
+  // ✅ ÚJ: termék megnyitás kattintások
+  productOpenClicksTotal: number;
+  dailyProductOpenClicks: DailyCount[]; // napra bontva
+  productOpenClicksByProductId: { [productId: string]: number }; // opcionális: top termékekhez
 };
 
 // ✅ CSAK DISKHEZ: DATA_DIR env + stats.json fájl
@@ -33,7 +47,9 @@ const STATS_FILE = path.join(DATA_DIR, "stats.json");
 
 const statsMap: { [siteKey: string]: SiteStats } = {};
 
-const MAX_DAYS = 30;
+// 7/30/90 + “előző időszak” összehasonlításhoz kell 180 nap is.
+// Legyen kényelmes: 200 nap.
+const MAX_DAYS = 200;
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -79,8 +95,18 @@ function loadStatsFromDisk() {
 
         freeTextCount: s?.freeTextCount && typeof s.freeTextCount === "object" ? s.freeTextCount : {},
         genderCount: s?.genderCount && typeof s.genderCount === "object" ? s.genderCount : {},
-        relationshipCount:
-          s?.relationshipCount && typeof s.relationshipCount === "object" ? s.relationshipCount : {},
+        relationshipCount: s?.relationshipCount && typeof s.relationshipCount === "object" ? s.relationshipCount : {},
+
+        responseTimeTotalMs: Number(s?.responseTimeTotalMs) || 0,
+        responseTimeCount: Number(s?.responseTimeCount) || 0,
+        dailyResponseTimes: Array.isArray(s?.dailyResponseTimes) ? s.dailyResponseTimes : [],
+
+        productOpenClicksTotal: Number(s?.productOpenClicksTotal) || 0,
+        dailyProductOpenClicks: Array.isArray(s?.dailyProductOpenClicks) ? s.dailyProductOpenClicks : [],
+        productOpenClicksByProductId:
+          s?.productOpenClicksByProductId && typeof s.productOpenClicksByProductId === "object"
+            ? s.productOpenClicksByProductId
+            : {},
       };
     }
 
@@ -106,6 +132,7 @@ function ensureStats(siteKey: string): SiteStats {
       siteKey: key,
       totalRequests: 0,
       lastRequestAt: undefined,
+
       dailyCounts: [],
       interestsCount: {},
       priceBuckets: createEmptyBuckets(),
@@ -113,6 +140,14 @@ function ensureStats(siteKey: string): SiteStats {
       freeTextCount: {},
       genderCount: {},
       relationshipCount: {},
+
+      responseTimeTotalMs: 0,
+      responseTimeCount: 0,
+      dailyResponseTimes: [],
+
+      productOpenClicksTotal: 0,
+      dailyProductOpenClicks: [],
+      productOpenClicksByProductId: {},
     };
   }
   return statsMap[key];
@@ -149,6 +184,20 @@ function normalizeQuery(q: any): string {
   return s;
 }
 
+function pruneDailyCounts(arr: DailyCount[]) {
+  const cutoff = isoDateNDaysAgo(MAX_DAYS);
+  return (Array.isArray(arr) ? arr : [])
+    .filter((d) => d && typeof d.date === "string" && d.date >= cutoff)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+}
+
+function pruneDailyTimings(arr: DailyTiming[]) {
+  const cutoff = isoDateNDaysAgo(MAX_DAYS);
+  return (Array.isArray(arr) ? arr : [])
+    .filter((d) => d && typeof d.date === "string" && d.date >= cutoff)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+}
+
 // ✅ induláskor betöltjük, ha van
 (function init() {
   loadStatsFromDisk();
@@ -156,16 +205,16 @@ function normalizeQuery(q: any): string {
 
 /**
  * Ezt hívjuk meg minden sikeres /api/recommend hívásnál.
- * Itt gyűjtünk minél több, a statisztikához hasznos adatot.
+ * durationMs: a teljes ajánlás futási ideje (ms).
  */
-export function recordRecommendation(siteKey: string, user?: UserContext): void {
+export function recordRecommendation(siteKey: string, user?: UserContext, durationMs?: number): void {
   const stats = ensureStats(siteKey);
 
   // Összes darabszám + utolsó időpont
   stats.totalRequests += 1;
   stats.lastRequestAt = new Date().toISOString();
 
-  // Napi bontás (utolsó 30 nap)
+  // Napi bontás
   const today = isoDateToday();
   let daily = stats.dailyCounts.find((d) => d.date === today);
   if (!daily) {
@@ -174,37 +223,71 @@ export function recordRecommendation(siteKey: string, user?: UserContext): void 
   }
   daily.count += 1;
 
-  // Régiek kiszórása (csak utolsó MAX_DAYS)
-  const cutoff = isoDateNDaysAgo(MAX_DAYS);
-  stats.dailyCounts = stats.dailyCounts
-    .filter((d) => d.date >= cutoff)
-    .sort((a, b) => a.date.localeCompare(b.date));
+  // Válaszidő mérés (ha jött duration)
+  const ms = typeof durationMs === "number" && Number.isFinite(durationMs) ? Math.max(0, Math.round(durationMs)) : 0;
+  if (ms > 0) {
+    stats.responseTimeTotalMs += ms;
+    stats.responseTimeCount += 1;
 
-  // Ha nincs extra user adatom, itt megállhatunk
+    let dt = stats.dailyResponseTimes.find((d) => d.date === today);
+    if (!dt) {
+      dt = { date: today, sumMs: 0, count: 0 };
+      stats.dailyResponseTimes.push(dt);
+    }
+    dt.sumMs += ms;
+    dt.count += 1;
+  }
+
+  // Prune
+  stats.dailyCounts = pruneDailyCounts(stats.dailyCounts);
+  stats.dailyResponseTimes = pruneDailyTimings(stats.dailyResponseTimes);
+
+  // Extra user statok
   if (user) {
-    // Budget kategóriák (budget_max / budget_min alapján)
     const bucket = getPriceBucket(user.budget_min, user.budget_max);
     stats.priceBuckets[bucket] = (stats.priceBuckets[bucket] || 0) + 1;
 
-    // Érdeklődési körök
     if (Array.isArray(user.interests)) {
       for (const raw of user.interests) {
         inc(stats.interestsCount, raw);
       }
     }
 
-    // ÚJ: free_text (mire kerestek)
     const q = normalizeQuery(user.free_text);
     if (q) {
       stats.freeTextCount[q] = (stats.freeTextCount[q] || 0) + 1;
     }
 
-    // ÚJ: demó megoszlások
     inc(stats.genderCount, user.gender || "unknown");
     inc(stats.relationshipCount, user.relationship || "unknown");
   }
 
-  // ✅ minden frissítés után kiírjuk diskre
+  saveStatsToDisk();
+}
+
+/**
+ * Widget termék megnyitás kattintás rögzítés.
+ */
+export function recordProductOpenClick(siteKey: string, productId?: string): void {
+  const stats = ensureStats(siteKey);
+
+  stats.productOpenClicksTotal += 1;
+
+  const today = isoDateToday();
+  let d = stats.dailyProductOpenClicks.find((x) => x.date === today);
+  if (!d) {
+    d = { date: today, count: 0 };
+    stats.dailyProductOpenClicks.push(d);
+  }
+  d.count += 1;
+
+  const pid = String(productId || "").trim();
+  if (pid) {
+    stats.productOpenClicksByProductId[pid] = (stats.productOpenClicksByProductId[pid] || 0) + 1;
+  }
+
+  stats.dailyProductOpenClicks = pruneDailyCounts(stats.dailyProductOpenClicks);
+
   saveStatsToDisk();
 }
 

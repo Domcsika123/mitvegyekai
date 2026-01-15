@@ -5,7 +5,7 @@ import { rankProductsWithEmbeddings } from "../ai/embeddings";
 import { rerankWithLLM } from "../ai/rerank";
 import { filterProductsByRules } from "../ai/rules";
 import { UserContext } from "../models/UserContext";
-import { recordRecommendation } from "../services/statsService";
+import { recordProductOpenClick, recordRecommendation } from "../services/statsService";
 import { findPartnerByApiKey, findPartnerBySiteKey } from "../services/partnerService";
 
 const router = Router();
@@ -17,7 +17,7 @@ function toNumberOrNull(value: any): number | null {
 }
 
 function normalizeGender(g: any): "male" | "female" | "other" | "unknown" {
-  const v = (typeof g === "string" ? g.trim().toLowerCase() : "");
+  const v = typeof g === "string" ? g.trim().toLowerCase() : "";
   if (v === "male" || v === "female" || v === "other" || v === "unknown") return v;
   return "unknown";
 }
@@ -75,6 +75,7 @@ const buckets: Record<string, Bucket> = {};
 const WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000) || 60_000;
 const RECOMMEND_MAX = Number(process.env.RATE_LIMIT_RECOMMEND_MAX || 60) || 60;
 const STATUS_MAX = Number(process.env.RATE_LIMIT_STATUS_MAX || 120) || 120;
+const CLICK_MAX = Number(process.env.RATE_LIMIT_CLICK_MAX || 300) || 300;
 
 function hitRateLimit(key: string, limit: number): boolean {
   const now = Date.now();
@@ -100,9 +101,7 @@ function resolveSiteKeyOrBlock(
   const body = req.body || {};
 
   const requestedSiteKey =
-    typeof body.site_key === "string" && body.site_key.trim() !== ""
-      ? body.site_key.trim()
-      : "default";
+    typeof body.site_key === "string" && body.site_key.trim() !== "" ? body.site_key.trim() : "default";
 
   // Demo/default: engedjük apiKey nélkül
   if (requestedSiteKey === "default" && !apiKey) {
@@ -130,9 +129,7 @@ function resolveSiteKeyForStatus(req: any): { siteKey: string; partner: any | nu
   const apiKey = getApiKeyFromReq(req);
 
   const requestedSiteKey =
-    typeof req.query.site_key === "string" && req.query.site_key.trim() !== ""
-      ? req.query.site_key.trim()
-      : "default";
+    typeof req.query.site_key === "string" && req.query.site_key.trim() !== "" ? req.query.site_key.trim() : "default";
 
   if (!apiKey) {
     return { siteKey: requestedSiteKey, partner: null };
@@ -146,7 +143,7 @@ function resolveSiteKeyForStatus(req: any): { siteKey: string; partner: any | nu
 
 // ----- OPTIONS (preflight) -----
 
-router.options("/partner-status", (req, res) => {
+function handlePreflight(req: any, res: any) {
   const origin = req.headers.origin as string | undefined;
   const apiKey = getApiKeyFromReq(req);
   const partner = apiKey ? findPartnerByApiKey(apiKey) : null;
@@ -158,36 +155,12 @@ router.options("/partner-status", (req, res) => {
     applyCors(res, origin);
   }
   return res.status(204).end();
-});
+}
 
-router.options("/recommend", (req, res) => {
-  const origin = req.headers.origin as string | undefined;
-  const apiKey = getApiKeyFromReq(req);
-  const partner = apiKey ? findPartnerByApiKey(apiKey) : null;
-
-  if (origin) {
-    if (partner && !isOriginAllowedForPartner(origin, partner)) {
-      return res.status(403).end();
-    }
-    applyCors(res, origin);
-  }
-  return res.status(204).end();
-});
-
-// ✅ ÚJ: partner-config preflight
-router.options("/partner-config", (req, res) => {
-  const origin = req.headers.origin as string | undefined;
-  const apiKey = getApiKeyFromReq(req);
-  const partner = apiKey ? findPartnerByApiKey(apiKey) : null;
-
-  if (origin) {
-    if (partner && !isOriginAllowedForPartner(origin, partner)) {
-      return res.status(403).end();
-    }
-    applyCors(res, origin);
-  }
-  return res.status(204).end();
-});
+router.options("/partner-status", handlePreflight);
+router.options("/recommend", handlePreflight);
+router.options("/partner-config", handlePreflight);
+router.options("/track/product-open", handlePreflight);
 
 // ----- partner-status -----
 
@@ -211,9 +184,7 @@ router.get("/partner-status", (req, res) => {
   }
 
   const requestedSiteKey =
-    typeof req.query.site_key === "string" && req.query.site_key.trim() !== ""
-      ? req.query.site_key.trim()
-      : "default";
+    typeof req.query.site_key === "string" && req.query.site_key.trim() !== "" ? req.query.site_key.trim() : "default";
 
   if (!apiKey) {
     if (requestedSiteKey === "default") {
@@ -229,23 +200,20 @@ router.get("/partner-status", (req, res) => {
   return res.json({ allowed: true, site_key: p.site_key });
 });
 
-// ✅ ÚJ: partner-config (widget UI config lekérése)
+// ----- partner-config -----
+
 router.get("/partner-config", (req, res) => {
   const origin = req.headers.origin as string | undefined;
   const apiKey = getApiKeyFromReq(req);
 
   const requestedSiteKey =
-    typeof req.query.site_key === "string" && req.query.site_key.trim() !== ""
-      ? req.query.site_key.trim()
-      : "default";
+    typeof req.query.site_key === "string" && req.query.site_key.trim() !== "" ? req.query.site_key.trim() : "default";
 
-  // rate limit
   if (hitRateLimit(`config:${requestedSiteKey}`, STATUS_MAX)) {
     if (origin) applyCors(res, origin);
     return res.status(429).json({ ok: false, error: "RATE_LIMIT" });
   }
 
-  // default demo: engedjük vissza, de config nem kötelező
   if (!apiKey) {
     if (origin) applyCors(res, origin);
     if (requestedSiteKey === "default") {
@@ -271,19 +239,51 @@ router.get("/partner-config", (req, res) => {
     applyCors(res, origin);
   }
 
-  // biztonság: a partner saját site_key-jét adjuk
   const p = findPartnerBySiteKey(partner.site_key);
   return res.json({
     ok: true,
     site_key: partner.site_key,
-    widget_config: (p && (p as any).widget_config) ? (p as any).widget_config : null,
+    widget_config: p && (p as any).widget_config ? (p as any).widget_config : null,
   });
+});
+
+// ----- track/product-open -----
+
+router.post("/track/product-open", (req, res) => {
+  const origin = req.headers.origin as string | undefined;
+
+  try {
+    const body = req.body || {};
+    const { siteKey, blocked, partner, reason } = resolveSiteKeyOrBlock(req);
+
+    if (origin && partner) {
+      if (!isOriginAllowedForPartner(origin, partner)) return res.status(403).json({ ok: false, error: "CORS_BLOCKED" });
+      applyCors(res, origin);
+    } else if (origin && !partner) {
+      applyCors(res, origin);
+    }
+
+    if (hitRateLimit(`click:${siteKey}`, CLICK_MAX)) {
+      return res.status(429).json({ ok: false, error: "RATE_LIMIT" });
+    }
+
+    if (blocked) return res.status(403).json({ ok: false, error: reason || "PARTNER_BLOCKED" });
+
+    const productId = typeof body.product_id === "string" ? body.product_id.trim() : "";
+    recordProductOpenClick(siteKey, productId || undefined);
+
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error("track/product-open hiba:", e);
+    return res.status(500).json({ ok: false, error: "SERVER_ERROR" });
+  }
 });
 
 // ----- recommend -----
 
 router.post("/recommend", async (req, res) => {
   const origin = req.headers.origin as string | undefined;
+  const t0 = Date.now();
 
   try {
     const body = req.body || {};
@@ -319,47 +319,75 @@ router.post("/recommend", async (req, res) => {
       interests: Array.isArray(body.interests)
         ? body.interests
         : typeof body.interests === "string" && body.interests.length > 0
-        ? body.interests.split(",").map((x: string) => x.trim())
-        : [],
+          ? body.interests.split(",").map((x: string) => x.trim())
+          : [],
       free_text: (body.free_text as string) || "",
       site_key: siteKey,
     };
 
     const allProducts = getProductsForSite(siteKey || "default");
     if (!allProducts || allProducts.length === 0) {
-      return res.json({ items: [] });
+      return res.json({ items: [], also_items: [], notice: "Ebben a webshopban még nincs feltöltött termék." });
     }
 
-    const rankedByEmbedding = await rankProductsWithEmbeddings(user, allProducts);
-    const topCandidates = rankedByEmbedding.slice(0, 20).map((r) => r.product);
+    // ✅ Embedding alapú előválogatás – de legyen fallback is
+    let rankedByEmbedding: any[] = [];
+    try {
+      rankedByEmbedding = await rankProductsWithEmbeddings(user, allProducts);
+    } catch (e) {
+      console.error("Embedding rangsorolás hiba:", e);
+      rankedByEmbedding = [];
+    }
+
+    const candidatePoolProducts: any[] =
+      rankedByEmbedding && rankedByEmbedding.length > 0 ? rankedByEmbedding.map((r) => r.product) : allProducts;
+
+    const topCandidates = candidatePoolProducts.slice(0, 40);
 
     let afterRules = filterProductsByRules(user, topCandidates);
-    if (afterRules.length === 0) {
-      afterRules = topCandidates.slice(0, 10);
+    if (!afterRules || afterRules.length < 8) {
+      afterRules = topCandidates.slice(0, 25);
     }
 
-    const finalRanked = await rerankWithLLM(user, afterRules);
+    const rr = await rerankWithLLM(user, afterRules);
 
-    const items = finalRanked.map((r) => ({
-      product_id: r.product.product_id,
-      name: r.product.name,
-      price: r.product.price,
-      category: r.product.category,
-      description: r.product.description,
-      image_url: r.product.image_url,
-      product_url: r.product.product_url,
+    const items = (rr.items || []).map((r) => ({
+      product_id: (r.product as any).product_id,
+      name: (r.product as any).name,
+      price: (r.product as any).price,
+      category: (r.product as any).category,
+      description: (r.product as any).description,
+      image_url: (r.product as any).image_url,
+      product_url: (r.product as any).product_url,
       reason: r.reason,
     }));
 
+    const alsoItems = (rr.also_items || []).map((r) => ({
+      product_id: (r.product as any).product_id,
+      name: (r.product as any).name,
+      price: (r.product as any).price,
+      category: (r.product as any).category,
+      description: (r.product as any).description,
+      image_url: (r.product as any).image_url,
+      product_url: (r.product as any).product_url,
+      reason: r.reason,
+    }));
+
+    // ✅ stat: sikeres ajánlásnál mérünk időt
     try {
-      if (items.length > 0) {
-        recordRecommendation(siteKey, user as any);
+      if (items.length > 0 || alsoItems.length > 0) {
+        const durationMs = Date.now() - t0;
+        recordRecommendation(siteKey, user as any, durationMs);
       }
     } catch (e) {
       console.error("Statisztika rögzítési hiba:", e);
     }
 
-    return res.json({ items });
+    return res.json({
+      items,
+      also_items: alsoItems,
+      notice: rr.notice || null,
+    });
   } catch (err: any) {
     console.error("Hiba a recommend endpointban:", err);
     return res.status(500).json({ error: "Hiba történt az ajánlás során." });

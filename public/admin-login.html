@@ -101,6 +101,7 @@
         }
 
         localStorage.setItem("mv_admin_token", data.token);
+        sessionStorage.removeItem("mv_admin_active_tab");
         setMsg("Sikeres belépés ✔", true);
 
         // ✅ maradjon kicsit tovább látható a zöld üzenet

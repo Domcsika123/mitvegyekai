@@ -48,7 +48,7 @@
     try {
       if (window.MV_WIDGET_PREVIEW === true) return "panel";
 
-      var p = (MV_AUTH && MV_AUTH.preview) ? String(MV_AUTH.preview) : "";
+      var p = MV_AUTH && MV_AUTH.preview ? String(MV_AUTH.preview) : "";
       p = p.trim().toLowerCase();
 
       if (p === "bubble" || p === "panel") return p;
@@ -151,7 +151,9 @@
 
     if (Array.isArray(raw.bubble_texts)) {
       var arr = raw.bubble_texts
-        .map(function (x) { return String(x || "").trim(); })
+        .map(function (x) {
+          return String(x || "").trim();
+        })
         .filter(Boolean);
       if (arr.length) MV_CONFIG.bubble_texts = arr;
     }
@@ -173,7 +175,7 @@
       "button_text",
       "accent",
       "header_grad_start",
-      "header_grad_end"
+      "header_grad_end",
     ];
 
     keys.forEach(function (k) {
@@ -195,7 +197,11 @@
       if (!resp.ok) return null;
 
       var data = null;
-      try { data = await resp.json(); } catch (_) { data = null; }
+      try {
+        data = await resp.json();
+      } catch (_) {
+        data = null;
+      }
       if (!data || data.ok !== true) return null;
 
       return data.widget_config || null;
@@ -236,7 +242,9 @@
 
   /* ===================== THEME APPLY ===================== */
 
-  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function clamp(n, a, b) {
+    return Math.max(a, Math.min(b, n));
+  }
 
   function hexToRgb(hex) {
     var h = String(hex || "").trim();
@@ -294,27 +302,32 @@
     var headerEnd = t.header_grad_end || "#3B82F6";
 
     var buttonBase = t.button_bg || "#6366F1";
-    var buttonEnd = lighten(buttonBase, 0.10);
+    var buttonEnd = lighten(buttonBase, 0.1);
 
-    var css = `
-      :root{
-        --mv-bubble-bg:${bubbleBase};
-        --mv-bubble-bg2:${bubbleMid};
-        --mv-bubble-text:${t.bubble_text || "#ffffff"};
-
-        --mv-panel-bg:${t.panel_bg || "#ffffff"};
-        --mv-panel-text:${t.panel_text || "#0F172A"};
-
-        --mv-header-grad-start:${headerStart};
-        --mv-header-grad-end:${headerEnd};
-
-        --mv-button-grad-start:${buttonBase};
-        --mv-button-grad-end:${buttonEnd};
-        --mv-button-text:${t.button_text || "#ffffff"};
-
-        --mv-accent:${t.accent || buttonBase};
-      }
-    `;
+    var css =
+      "\n      :root{\n        --mv-bubble-bg:" +
+      bubbleBase +
+      ";\n        --mv-bubble-bg2:" +
+      bubbleMid +
+      ";\n        --mv-bubble-text:" +
+      (t.bubble_text || "#ffffff") +
+      ";\n\n        --mv-panel-bg:" +
+      (t.panel_bg || "#ffffff") +
+      ";\n        --mv-panel-text:" +
+      (t.panel_text || "#0F172A") +
+      ";\n\n        --mv-header-grad-start:" +
+      headerStart +
+      ";\n        --mv-header-grad-end:" +
+      headerEnd +
+      ";\n\n        --mv-button-grad-start:" +
+      buttonBase +
+      ";\n        --mv-button-grad-end:" +
+      buttonEnd +
+      ";\n        --mv-button-text:" +
+      (t.button_text || "#ffffff") +
+      ";\n\n        --mv-accent:" +
+      (t.accent || buttonBase) +
+      ";\n      }\n    ";
 
     var styleEl = ensureThemeVars();
     styleEl.textContent = css;
@@ -358,7 +371,7 @@
 
     if (isPreviewMode()) {
       var arr = Array.isArray(MV_CONFIG.bubble_texts) ? MV_CONFIG.bubble_texts : [];
-      MV_BUBBLE_PICKED_TEXT = (arr && arr.length) ? String(arr[0]) : null;
+      MV_BUBBLE_PICKED_TEXT = arr && arr.length ? String(arr[0]) : null;
     } else {
       MV_BUBBLE_PICKED_TEXT = null;
     }
@@ -618,20 +631,29 @@
 
       .mv-widget-textarea { resize: vertical; min-height: 54px; line-height: 1.45; }
 
-      .mv-widget-results-title {
-        display: none;
-        color: #166534;
-        background: #f0fdf4;
-        border: 1px solid #bbf7d0;
-        font-weight: 900;
-        letter-spacing: -0.2px;
-        padding: 10px 12px;
-        border-radius: 10px;
-        margin-top: 8px;
-        margin-bottom: 10px;
-      }
-
       .mv-widget-results { margin-top: 0; display: flex; flex-direction: column; gap: 10px; }
+
+      /* 2 szekció cím */
+      .mv-widget-results-section-title{
+        font-size: 11px;
+        font-weight: 900;
+        color: #0F172A;
+        text-transform: uppercase;
+        letter-spacing: 0.35px;
+        margin: 6px 0 2px 0;
+      }
+      .mv-widget-results-section-note{
+        font-size: 11px;
+        font-weight: 700;
+        color: #64748b;
+        margin: 0 0 6px 0;
+        line-height: 1.35;
+      }
+      .mv-widget-results-sep{
+        height: 1px;
+        background: #e5e7eb;
+        margin: 6px 0;
+      }
 
       .mv-widget-result-item {
         border-radius: 14px;
@@ -825,12 +847,16 @@
           line-height: 1.6 !important;
         }
 
-        html:not(.mv-preview-panel):not(.mv-preview-bubble) .mv-widget-results-title {
-          font-size: 38px !important;
-          padding: 22px 22px !important;
-          border-radius: 20px !important;
-          margin-top: 22px !important;
-          margin-bottom: 22px !important;
+        html:not(.mv-preview-panel):not(.mv-preview-bubble) .mv-widget-results-section-title{
+          font-size: 28px !important;
+          margin: 10px 0 6px 0 !important;
+        }
+        html:not(.mv-preview-panel):not(.mv-preview-bubble) .mv-widget-results-section-note{
+          font-size: 26px !important;
+          margin-bottom: 14px !important;
+        }
+        html:not(.mv-preview-panel):not(.mv-preview-bubble) .mv-widget-results-sep{
+          margin: 14px 0 !important;
         }
 
         html:not(.mv-preview-panel):not(.mv-preview-bubble) .mv-widget-result-item {
@@ -856,10 +882,8 @@
         html:not(.mv-preview-panel):not(.mv-preview-bubble) .mv-widget-status { font-size: 30px !important; padding: 22px 22px !important; border-radius: 20px !important; }
       }
 
-
       /* ===== PREVIEW MÓD (csak szerkesztőhöz) ===== */
 
-      /* bubble preview: középre, ne lebegjen, ne legyen kattintható */
       .mv-preview-bubble .mv-widget-root{
         position: relative;
         left: 0; top: 0; right: auto; bottom: auto;
@@ -882,7 +906,6 @@
         transform: translate(-50%, -50%) scale(var(--mv-scale)) !important;
       }
 
-      /* ✅ panel preview: KÖZÉPRE + NAGYOBB (csak preview-ban), felhő rejtve, close tiltva */
       .mv-preview-panel .mv-widget-bubble-btn{ display:none !important; }
 
       .mv-preview-panel .mv-widget-panel{
@@ -893,7 +916,6 @@
         left: 50% !important;
         top: 50% !important;
 
-        /* hagyjuk a normál desktop méretet */
         width: 420px !important;
         max-width: calc(100vw - 40px) !important;
         max-height: calc(100vh - 40px) !important;
@@ -903,7 +925,6 @@
 
         animation: none !important;
       }
-
 
       .mv-preview-panel .mv-widget-close-btn{
         pointer-events: none !important;
@@ -986,7 +1007,6 @@
     MV_STATE.bubbleBtn = bubbleBtn;
 
     bubbleBtn.addEventListener("click", function () {
-      // preview bubble módban sose nyíljon meg
       if (getPreviewKind() === "bubble") return;
       openPanel();
     });
@@ -1020,7 +1040,6 @@
     closeBtn.className = "mv-widget-close-btn";
     closeBtn.innerHTML = "&times;";
 
-    // ✅ preview panel módban a close ne legyen kattintható (vizuál marad)
     if (getPreviewKind() === "panel") {
       closeBtn.setAttribute("aria-disabled", "true");
       closeBtn.setAttribute("tabindex", "-1");
@@ -1079,7 +1098,9 @@
     section4.innerHTML =
       '<div class="mv-widget-section-label">❤️ Érdeklődés</div>' +
       '<div class="mv-widget-form-field">' +
-      '<input id="mv-input-interests" class="mv-widget-input" type="text" placeholder="' + safeStr(MV_CONFIG.interest_placeholder, "pl. futás, tech, kávé, fotózás") + '" />' +
+      '<input id="mv-input-interests" class="mv-widget-input" type="text" placeholder="' +
+      safeStr(MV_CONFIG.interest_placeholder, "pl. futás, tech, kávé, fotózás") +
+      '" />' +
       "</div>";
 
     var section5 = document.createElement("div");
@@ -1087,13 +1108,10 @@
     section5.innerHTML =
       '<div class="mv-widget-section-label">📝 További részletek</div>' +
       '<div class="mv-widget-form-field">' +
-      '<textarea id="mv-input-free-text" class="mv-widget-textarea" placeholder="' + safeStr(MV_CONFIG.details_placeholder, "pl. szereti a praktikus dolgokat...") + '"></textarea>' +
+      '<textarea id="mv-input-free-text" class="mv-widget-textarea" placeholder="' +
+      safeStr(MV_CONFIG.details_placeholder, "pl. szereti a praktikus dolgokat...") +
+      '"></textarea>' +
       "</div>";
-
-    var resultsTitle = document.createElement("div");
-    resultsTitle.id = "mv-results-title";
-    resultsTitle.className = "mv-widget-results-title";
-    resultsTitle.textContent = "Ajánlatok:";
 
     var resultsContainer = document.createElement("div");
     resultsContainer.id = "mv-results";
@@ -1104,7 +1122,6 @@
     body.appendChild(section3);
     body.appendChild(section4);
     body.appendChild(section5);
-    body.appendChild(resultsTitle);
     body.appendChild(resultsContainer);
 
     var submitSection = document.createElement("div");
@@ -1144,7 +1161,6 @@
     MV_STATE.panel = panel;
 
     closeBtn.addEventListener("click", function () {
-      // ✅ preview panel módban tilos bezárni
       if (getPreviewKind() === "panel") return;
       closePanel(true);
     });
@@ -1188,6 +1204,43 @@
     startBubbleRotation();
   }
 
+  /* ===================== SCROLL HELPERS ===================== */
+
+  function getPanelBodyEl() {
+    return document.querySelector("#mv-widget-panel .mv-widget-body");
+  }
+
+  function scrollPanelBodyToElement(targetEl, behavior) {
+    try {
+      var bodyEl = getPanelBodyEl();
+      if (!bodyEl || !targetEl) return;
+
+      var bodyRect = bodyEl.getBoundingClientRect();
+      var tRect = targetEl.getBoundingClientRect();
+
+      var delta = (tRect.top - bodyRect.top) + bodyEl.scrollTop;
+
+      bodyEl.scrollTo({
+        top: Math.max(0, delta - 6),
+        behavior: behavior || "smooth",
+      });
+    } catch (_) {
+      try {
+        targetEl && targetEl.scrollIntoView({ behavior: behavior || "smooth", block: "start" });
+      } catch (_) {}
+    }
+  }
+
+  function scrollToResultsSectionTop() {
+    var container = document.getElementById("mv-results");
+    if (!container) return;
+
+    var firstTitle = container.querySelector(".mv-widget-results-section-title");
+    if (!firstTitle) return;
+
+    scrollPanelBodyToElement(firstTitle, "smooth");
+  }
+
   /* ===================== LOGIC ===================== */
 
   function resetForm() {
@@ -1209,7 +1262,6 @@
     if (genderSelect) genderSelect.value = "unknown";
 
     var statusEl = document.getElementById("mv-status");
-    var resultsTitle = document.getElementById("mv-results-title");
     var resultsEl = document.getElementById("mv-results");
 
     if (statusEl) {
@@ -1217,7 +1269,6 @@
       statusEl.textContent = "";
       statusEl.className = "mv-widget-status";
     }
-    if (resultsTitle) resultsTitle.style.display = "none";
     if (resultsEl) resultsEl.innerHTML = "";
 
     var resetBtn = document.getElementById("mv-reset-btn");
@@ -1229,7 +1280,7 @@
     }
 
     try {
-      var bodyEl = document.querySelector("#mv-widget-panel .mv-widget-body");
+      var bodyEl = getPanelBodyEl();
       if (bodyEl) bodyEl.scrollTo({ top: 0, behavior: "smooth" });
     } catch (_) {}
   }
@@ -1244,25 +1295,39 @@
     return !s || String(s).trim().length === 0;
   }
 
-  function scrollToResultsTitle() {
-    var title = document.getElementById("mv-results-title");
-    if (!title) return;
+    async function trackProductOpen(productId) {
     try {
-      title.scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch (_) {
-      title.scrollIntoView(true);
-    }
+      mvRefreshAuth();
+
+      // previewben ne trackeljünk
+      if (isPreviewMode()) return;
+
+      var payload = {
+        site_key: MV_AUTH.siteKey,
+        product_id: String(productId || "").trim(),
+      };
+
+      // keepalive: hogy kattintáskor ne vesszen el a kérés
+      await fetch("/api/track/product-open", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-mv-api-key": MV_AUTH.apiKey || "",
+        },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      });
+    } catch (_) {}
   }
+
 
   async function handleRecommendClick() {
     mvRefreshAuth();
 
     var statusEl = document.getElementById("mv-status");
-    var resultsTitle = document.getElementById("mv-results-title");
     var resultsEl = document.getElementById("mv-results");
     if (!statusEl || !resultsEl) return;
 
-    if (resultsTitle) resultsTitle.style.display = "none";
     statusEl.textContent = "";
     statusEl.className = "mv-widget-status";
     statusEl.style.display = "none";
@@ -1284,12 +1349,32 @@
     var interestsRaw = interestsInput ? interestsInput.value || "" : "";
     var freeText = freeTextInput ? freeTextInput.value || "" : "";
 
+    function mvTokenizeWords(str) {
+      var s = String(str || "").toLowerCase();
+      try {
+        return s
+          .replace(/[^\p{L}\p{N}]+/gu, " ")
+          .trim()
+          .split(/\s+/g)
+          .filter(Boolean);
+      } catch (e) {
+        return s
+          .replace(/[^a-z0-9áéíóöőúüű]+/g, " ")
+          .trim()
+          .split(/\s+/g)
+          .filter(Boolean);
+      }
+    }
+
     var interests = [];
     if (interestsRaw.trim().length > 0) {
-      interests = interestsRaw
-        .split(",")
-        .map(function (x) { return x.trim(); })
-        .filter(function (x) { return x.length > 0; });
+      interests = mvTokenizeWords(interestsRaw)
+        .map(function (x) {
+          return x.trim();
+        })
+        .filter(function (x) {
+          return x.length >= 2;
+        });
     }
 
     var hasAnyInput =
@@ -1319,7 +1404,9 @@
       site_key: MV_AUTH.siteKey,
     };
 
+    // Loading a panel alján
     statusEl.textContent = "Ajánlatok betöltése…";
+    statusEl.classList.remove("mv-widget-status-error");
     statusEl.classList.add("mv-widget-status-ok");
     statusEl.style.display = "block";
 
@@ -1335,28 +1422,42 @@
 
       if (!response.ok) {
         var errJson = {};
-        try { errJson = await response.json(); } catch (_) {}
-        var reason = (errJson && errJson.error) ? (" (" + errJson.error + ")") : "";
+        try {
+          errJson = await response.json();
+        } catch (_) {}
+        var reason = errJson && errJson.error ? " (" + errJson.error + ")" : "";
         throw new Error("Ajánló API hiba: " + response.status + reason);
       }
 
       var data = await response.json();
       var items = (data && data.items) || [];
+      var alsoItems = (data && data.also_items) || [];
+      var notice = (data && data.notice) ? String(data.notice || "").trim() : "";
 
-      if (!items || items.length === 0) {
+      if ((!items || items.length === 0) && (!alsoItems || alsoItems.length === 0)) {
         statusEl.textContent = "Nem találtam megfelelő terméket a megadott feltételekkel.";
         statusEl.classList.remove("mv-widget-status-ok");
         statusEl.classList.add("mv-widget-status-error");
         statusEl.style.display = "block";
-        if (resultsTitle) resultsTitle.style.display = "none";
         return;
       }
 
-      statusEl.style.display = "none";
-      if (resultsTitle) resultsTitle.style.display = "block";
+      // notice (ha kell) marad alul
+      if (notice && (!items || items.length === 0)) {
+        statusEl.textContent = notice;
+        statusEl.classList.remove("mv-widget-status-error");
+        statusEl.classList.add("mv-widget-status-ok");
+        statusEl.style.display = "block";
+      } else {
+        statusEl.style.display = "none";
+      }
 
-      renderResults(resultsEl, items);
-      setTimeout(scrollToResultsTitle, 60);
+      renderResultsTwoSections(resultsEl, items, alsoItems);
+
+      // automata görgetés a "Találatok:" tetejére
+      setTimeout(function () {
+        scrollToResultsSectionTop();
+      }, 80);
     } catch (err) {
       console.error(err);
       statusEl.textContent =
@@ -1364,7 +1465,6 @@
       statusEl.classList.remove("mv-widget-status-ok");
       statusEl.classList.add("mv-widget-status-error");
       statusEl.style.display = "block";
-      if (resultsTitle) resultsTitle.style.display = "none";
     }
   }
 
@@ -1375,10 +1475,8 @@
     return n.toLocaleString("hu-HU") + " Ft";
   }
 
-  function renderResults(container, items) {
-    container.innerHTML = "";
-
-    items.forEach(function (item) {
+  function appendResults(container, items) {
+    (items || []).forEach(function (item) {
       var card = document.createElement("div");
       card.className = "mv-widget-result-item";
 
@@ -1439,13 +1537,48 @@
         link.target = "_blank";
         link.rel = "noopener noreferrer";
         link.textContent = "Megnézem";
+
+        // ✅ click track
+        link.addEventListener("click", function () {
+          trackProductOpen(item.product_id || "");
+        });
+
         content.appendChild(link);
       }
+
 
       card.appendChild(media);
       card.appendChild(content);
       container.appendChild(card);
     });
+  }
+
+  function renderResultsTwoSections(container, items, alsoItems) {
+    container.innerHTML = "";
+
+    if (items && items.length > 0) {
+      var t1 = document.createElement("div");
+      t1.className = "mv-widget-results-section-title";
+      t1.textContent = "Találatok:";
+      container.appendChild(t1);
+
+      appendResults(container, items);
+    }
+
+    if (alsoItems && alsoItems.length > 0) {
+      if (items && items.length > 0) {
+        var sep = document.createElement("div");
+        sep.className = "mv-widget-results-sep";
+        container.appendChild(sep);
+      }
+
+      var t2 = document.createElement("div");
+      t2.className = "mv-widget-results-section-title";
+      t2.textContent = "AMI MÉG ÉRDEKELHET:";
+      container.appendChild(t2);
+
+      appendResults(container, alsoItems);
+    }
   }
 
   /* ===================== PREVIEW: postMessage listener ===================== */
@@ -1487,12 +1620,14 @@
       document.documentElement.classList.add("mv-preview-bubble");
     } else if (p === "panel") {
       document.documentElement.classList.add("mv-preview-panel");
-      openPanel(); // jobbra mindig nyitva
+      openPanel();
     }
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function () { init(); });
+    document.addEventListener("DOMContentLoaded", function () {
+      init();
+    });
   } else {
     init();
   }
