@@ -274,12 +274,12 @@ export async function rerankWithLLM(user: UserContext, products: Product[]): Pro
     description: cut((p as any).description, 320),
   }));
 
-  const maxTotal = Math.min(14, products.length);
-  const maxMain = Math.min(7, products.length);
-  const maxAlso = Math.min(10, products.length);
+  const maxTotal = Math.min(18, products.length);
+  const maxMain = Math.min(12, products.length);
+  const maxAlso = Math.min(12, products.length);
 
-  const minMainTarget = Math.min(3, maxMain); // ✅ ne legyen 0 items
-  const minAlsoTarget = Math.min(5, maxAlso); // ✅ legyen rendes AMI MÉG ÉRDEKELHET
+  const minMainTarget = Math.min(6, maxMain); // ✅ legalabb 6 tallatat
+  const minAlsoTarget = Math.min(8, maxAlso); // ✅ legyen rendes AMI MÉG ÉRDEKELHET
 
   const systemPrompt = `
 Te egy magyar nyelvű TERMÉK-AJÁNLÓ asszisztens vagy.
@@ -296,8 +296,8 @@ FONTOS:
 SZABÁLYOK:
 - Csak JSON-t adj vissza, extra szöveg nélkül.
 - Az "index" a kapott terméklista indexe.
-- items legyen 3-7 elem, ha van elég termék.
-- also_items legyen 5-10 elem, ha van elég termék.
+- items legyen 6-12 elem, ha van elég termék.
+- also_items legyen 8-12 elem, ha van elég termék.
 - Ne duplikálj: ugyanaz az index ne szerepeljen mindkét listában.
 - Az indoklás 1-2 mondat, magyarul, barátságos és értékesítő.
 - Csak olyat állíts, ami tényleg látszik a termék adataiból (name/category/description/price). Ne hallucinálj.
@@ -368,7 +368,7 @@ ${JSON.stringify(productList, null, 2)}
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4.1-mini",
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: systemPrompt },
