@@ -18,9 +18,14 @@ export function getAdminToken(): string | null {
 function loadAdminUsers(): { user: string; pass: string }[] {
   try {
     const filePath = path.join(__dirname, "..", "..", "data", "admin-users.json");
+    console.log("[adminLogin] Keresett path:", filePath);
     if (fs.existsSync(filePath)) {
       const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-      return Array.isArray(data.users) ? data.users : [];
+      const users = Array.isArray(data.users) ? data.users : [];
+      console.log("[adminLogin] Betöltött felhasználók:", users.map((u: any) => u.user));
+      return users;
+    } else {
+      console.warn("[adminLogin] admin-users.json nem létezik:", filePath);
     }
   } catch (err) {
     console.warn("[adminLogin] Nem lehet betölteni admin-users.json:", err);
@@ -28,6 +33,7 @@ function loadAdminUsers(): { user: string; pass: string }[] {
   // Fallback: env variables
   const envUser = process.env.ADMIN_USER || "admin";
   const envPass = process.env.ADMIN_PASS || "admin";
+  console.log("[adminLogin] Fallback felhasználó:", envUser);
   return [{ user: envUser, pass: envPass }];
 }
 
