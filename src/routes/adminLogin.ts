@@ -14,7 +14,7 @@ export function getAdminToken(): string | null {
   return (globalThis as any).__MV_ADMIN_TOKEN__ || null;
 }
 
-// Admin felhasználók betöltése JSON-ből
+// Admin felhasználók betöltése JSON-ből vagy env-ből
 function loadAdminUsers(): { user: string; pass: string }[] {
   try {
     const filePath = path.join(__dirname, "..", "..", "data", "admin-users.json");
@@ -22,7 +22,7 @@ function loadAdminUsers(): { user: string; pass: string }[] {
     if (fs.existsSync(filePath)) {
       const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
       const users = Array.isArray(data.users) ? data.users : [];
-      console.log("[adminLogin] Betöltött felhasználók:", users.map((u: any) => u.user));
+      console.log("[adminLogin] Betöltött felhasználók (JSON):", users.map((u: any) => u.user));
       return users;
     } else {
       console.warn("[adminLogin] admin-users.json nem létezik:", filePath);
@@ -30,10 +30,25 @@ function loadAdminUsers(): { user: string; pass: string }[] {
   } catch (err) {
     console.warn("[adminLogin] Nem lehet betölteni admin-users.json:", err);
   }
-  // Fallback: env variables
+
+  // Fallback: ADMIN_USERS env variable (JSON string)
+  const adminUsersEnv = process.env.ADMIN_USERS;
+  if (adminUsersEnv) {
+    try {
+      const users = JSON.parse(adminUsersEnv);
+      if (Array.isArray(users)) {
+        console.log("[adminLogin] Betöltött felhasználók (ENV):", users.map((u: any) => u.user));
+        return users;
+      }
+    } catch (err) {
+      console.warn("[adminLogin] ADMIN_USERS env parse error:", err);
+    }
+  }
+
+  // Final fallback: env variables
   const envUser = process.env.ADMIN_USER || "admin";
   const envPass = process.env.ADMIN_PASS || "admin";
-  console.log("[adminLogin] Fallback felhasználó:", envUser);
+  console.log("[adminLogin] Fallback felhasználó (ENV vars):", envUser);
   return [{ user: envUser, pass: envPass }];
 }
 
