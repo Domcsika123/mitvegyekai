@@ -525,8 +525,8 @@ const REASON_FLUFF = [
  */
 function sanitizeLLMReason(reason: string, product: any): string {
   if (!reason) return buildCardDescription(product) || product.name || "Ajánlott termék";
-  if (reason.length > 160) return buildCardDescription(product) || product.name || "Ajánlott termék";
-  if (reason.length < 30) return buildCardDescription(product) || product.name || "Ajánlott termék";
+  if (reason.length > 200) return buildCardDescription(product) || product.name || "Ajánlott termék";
+  if (reason.length < 50) return buildCardDescription(product) || product.name || "Ajánlott termék";
   if (REASON_FLUFF.some((p) => p.test(reason))) return buildCardDescription(product) || product.name || "Ajánlott termék";
   return reason;
 }
@@ -666,8 +666,8 @@ router.post("/recommend", async (req, res) => {
       const withinBudget = primary.filter((p) => {
         const price = parsePrice((p as any).price);
         if (price === null) return true; // áratlan termék: beengedjük
-        if (hasBudgetMin && price < user.budget_min! * 0.9) return false;
-        if (hasBudgetMax && price > user.budget_max! * 1.1) return false;
+        if (hasBudgetMin && price < user.budget_min!) return false;
+        if (hasBudgetMax && price > user.budget_max!) return false;
         return true;
       });
 

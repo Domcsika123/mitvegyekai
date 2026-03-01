@@ -181,14 +181,28 @@ function buildAttributeSummary(product: Product): string {
 
 /**
  * Detect color from product data and translate to Hungarian.
- * Only checks the product name — descriptions often mention multiple colors
- * ("also available in red, blue...") causing false positives.
+ * Checks name first, then tags (but NOT description — descriptions often mention
+ * multiple colors like "also available in red, blue..." causing false positives).
  */
 function detectColorHu(product: Product): string | null {
-  const searchText = (product.name || "").toLowerCase();
+  const nameLower = (product.name || "").toLowerCase();
   for (const [eng, hu] of Object.entries(COLOR_TO_HU)) {
-    if (searchText.includes(eng)) {
+    if (nameLower.includes(eng)) {
       return hu;
+    }
+  }
+  // Also check tags (e.g. Shopify tags: "Grey,Oversized,Cotton")
+  const tagsText = (() => {
+    const t = (product as any).tags;
+    if (!t) return "";
+    return (Array.isArray(t) ? t.join(" ") : String(t)).toLowerCase();
+  })();
+  if (tagsText) {
+    for (const [eng, hu] of Object.entries(COLOR_TO_HU)) {
+      // Use word boundary to avoid e.g. "navy" matching inside "old navy brand"
+      if (new RegExp(`\\b${eng}\\b`).test(tagsText)) {
+        return hu;
+      }
     }
   }
   return null;

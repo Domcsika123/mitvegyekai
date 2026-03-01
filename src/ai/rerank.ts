@@ -387,8 +387,8 @@ ${secondaryNote}
 
 REASON RULES:
 - Write ALL reasons in HUNGARIAN language
-- MAX 90 characters per reason — keep it SHORT and FACTUAL
-- Format: "[Szín] [anyag] [típus], [jellemzők]." — e.g. "Fekete pamut póló, bő szabású, vastag anyag."
+- 60–130 characters per reason — include meaningful details, not filler
+- Include: color (if detectable), type, material, and 2-3 key features from the description
 - Do NOT repeat the product name or brand — it's already in the title
 - Do NOT end with "a kényelmes viseletért", "biztosít", "tökéletes", "kiváló" — BANNED
 - Do NOT use: "Remek választás", "pont illik", "a keresésedhez" — BANNED
@@ -404,8 +404,9 @@ Good examples:
 ✓ "Washed fehér tank top, 100% organikus pamut, grafikás hátoldal."
 
 Bad examples:
-✗ "UNREAL Eberkoma Grey póló, magas minőségű pamutból." — brand/product name repeated
-✗ "Szürke póló." — too short, no details
+✗ "UNREAL Eberkoma Grey póló, magas minőségű pamutból." — brand/product name repeated, too short
+✗ "Szürke póló." — way too short, missing material, fit and features
+✗ "pamut póló, bő szabású, vastag anyag." — too short, no color, no distinguishing detail
 ✗ "Remek választás!" — generic
 ✗ "Pont illik a keresésedhez." — banned phrase
 
