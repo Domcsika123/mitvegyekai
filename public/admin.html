@@ -1636,8 +1636,20 @@
             });
 
             if (!response || !response.ok) {
-              const errData = await (response ? response.json().catch(() => ({})) : Promise.resolve({}));
-              throw new Error(errData.error || "Ismeretlen hiba");
+              const status = response ? response.status : 0;
+              const rawText = response ? await response.text().catch(() => "") : "";
+              let errMsg = "Ismeretlen hiba";
+              try {
+                const errData = JSON.parse(rawText);
+                errMsg = errData.error || `HTTP ${status}`;
+              } catch {
+                if (rawText) {
+                  errMsg = `HTTP ${status}: ${rawText.replace(/<[^>]+>/g, "").trim().slice(0, 200)}`;
+                } else {
+                  errMsg = `HTTP ${status}: szerver nem válaszolt JSON-nal`;
+                }
+              }
+              throw new Error(errMsg);
             }
 
             const data = await response.json();

@@ -125,7 +125,8 @@ router.post("/import-products", async (req, res) => {
     });
   } catch (err) {
     console.error("Hiba a /api/admin/import-products hívásban:", err);
-    return res.status(500).json({ error: "Hiba történt az import során a szerveren." });
+    const errorMessage = err instanceof Error ? err.message : "Ismeretlen szerverhiba";
+    return res.status(500).json({ error: `Hiba történt az import során: ${errorMessage}` });
   }
 });
 

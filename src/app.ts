@@ -36,4 +36,22 @@ app.use("/api/admin", adminAuth, adminRouter);
 // Nyilvános ajánló API
 app.use("/api", recommendRouter);
 
+// ✅ GLOBÁLIS ERROR HANDLER – mindig JSON választ küld hiba esetén
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error("Express error handler:", err);
+  
+  // Body-parser error (pl. payload too large, invalid JSON)
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({ error: "Request body túl nagy. Maximum: 50MB" });
+  }
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({ error: "Invalid JSON a request body-ban." });
+  }
+  
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Szerverhiba történt.";
+  return res.status(status).json({ error: message });
+});
+
 export default app;
