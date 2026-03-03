@@ -308,7 +308,7 @@ export async function rerankWithLLM(
   // Build product list — strip HTML from descriptions, remove size suffixes from names
   const productList = allProducts.map((p, idx) => {
     const rawDesc = String((p as any).description || "");
-    const cleanDesc = stripHtml(rawDesc).slice(0, 280);
+    const cleanDesc = stripHtml(rawDesc).slice(0, 120);
     const catLast = (p.category || "").includes(">")
       ? (p.category || "").split(">").pop()!.trim()
       : (p.category || "");
@@ -333,7 +333,7 @@ export async function rerankWithLLM(
   // In non-strict:  LLM decides items vs also_items for primary; secondary always → also_items
   const maxMain = Math.min(8, numPrimary);
   const minMain = Math.min(4, numPrimary);
-  const maxAlso = Math.min(15, allProducts.length);
+  const maxAlso = Math.min(8, allProducts.length);
   const minAlso = secondaryProducts.length > 0 ? secondaryProducts.length : Math.min(3, Math.max(0, allProducts.length - 5));
 
   const secondaryNote = secondaryProducts.length > 0
@@ -434,7 +434,7 @@ CATALOG TYPE: ${catalog.hint}${isEnglishCatalog ? " (English/international brand
 ${mismatch ? "⚠ The query may not perfectly match this catalog. Select the closest relevant products." : ""}
 
 PRODUCTS (${productList.length} items):
-${JSON.stringify(productList, null, 2)}
+${JSON.stringify(productList)}
 `.trim();
 
   // Map LLM array output to RankedProduct[]. maxIdx limits which indexes are valid.
@@ -476,6 +476,7 @@ ${JSON.stringify(productList, null, 2)}
           { role: "user", content: userPrompt },
         ],
         temperature: 0.3,
+        max_tokens: 900,
       });
 
       const raw = response.choices[0]?.message?.content || "";

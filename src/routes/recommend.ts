@@ -690,9 +690,9 @@ router.post("/recommend", async (req, res) => {
     const secondaryDeduped = dedupeByBaseProduct(secondary);
 
     // ================================================================
-    // Stage 4: LLM rerank (top 50 primary → items + also_items)
+    // Stage 4: LLM rerank (top 28 primary → items + also_items)
     // ================================================================
-    const MAX_FOR_LLM = 50;
+    const MAX_FOR_LLM = 28;
     const top50Primary = primaryDeduped.slice(0, MAX_FOR_LLM);
 
     console.log(
@@ -704,7 +704,7 @@ router.post("/recommend", async (req, res) => {
     const hasHardFilter = !!(querySignals.type || querySignals.colors.size > 0 || querySignals.genders.size > 0 || hasBudgetMax || hasBudgetMin);
 
     // Include secondary candidates in the LLM call so they get Hungarian descriptions too
-    const MAX_SECONDARY_FOR_LLM = 15;
+    const MAX_SECONDARY_FOR_LLM = 8;
     const secondaryForLLM = secondaryDeduped.slice(0, MAX_SECONDARY_FOR_LLM);
 
     // When primary is empty (colorFilterSkipped), pass secondary to LLM as input
