@@ -164,6 +164,9 @@ function loadCatalogFromDisk(siteKey: string): Product[] {
       product_type: p.product_type ?? undefined,
       vendor: p.vendor ?? undefined,
 
+      // Import-time AI description (ha van)
+      ai_description: typeof p.ai_description === "string" ? p.ai_description : undefined,
+
       // Embedding csak akkor, ha az öreg formátumban van
       embedding: Array.isArray(p.embedding) ? p.embedding : undefined,
     }));

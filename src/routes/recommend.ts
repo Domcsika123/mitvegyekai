@@ -56,6 +56,7 @@ const TYPE_FILTER_MAP: Record<string, string[]> = {
   "szoknya": ["skirt"],
   "fehérnemű": ["underwear", "boxer", "brief"],
   "fürdőruha": ["swimwear", "swim", "bikini"],
+  "kiegészítő": ["keychain", "necklace", "chain", "scarf", "shawl", "sock", "belt", "jewelry", "bracelet", "ring", "earring"],
   "ékszer": ["jewelry", "necklace", "ring", "bracelet", "earring"],
 };
 
@@ -82,6 +83,10 @@ const COLOR_FILTER_MAP: Record<string, string[]> = {
   "ezüst": ["silver"],
 };
 
+// For swimwear: check name only — Shopify can miscategorize underwear as Swimwear
+// (e.g. "UNREAL Panties 2 pack" has category "Swimwear" but is not swimwear)
+const TYPE_FILTER_NAME_ONLY = new Set(["fürdőruha"]);
+
 function productMatchesType(product: Product, canonicalType: string): boolean {
   const keywords = TYPE_FILTER_MAP[canonicalType];
   if (!keywords || keywords.length === 0) return true; // unknown type → don't filter
@@ -93,7 +98,8 @@ function productMatchesType(product: Product, canonicalType: string): boolean {
   const lastCatSegment = fullCategory.includes(">")
     ? fullCategory.split(">").pop()!.trim()
     : fullCategory;
-  const searchText = `${name} ${lastCatSegment}`;
+  // Name-only for types where category can be misleading (swimwear miscategorization)
+  const searchText = TYPE_FILTER_NAME_ONLY.has(canonicalType) ? name : `${name} ${lastCatSegment}`;
 
   return keywords.some((kw) => {
     // Word-boundary at start prevents "bag" matching inside "handbag"
@@ -695,77 +701,124 @@ router.post("/recommend", async (req, res) => {
     const MAX_FOR_LLM = 28;
     const top50Primary = primaryDeduped.slice(0, MAX_FOR_LLM);
 
-    console.log(
-      `[recommend] LLM rerank: site=${siteKey} query="${queryText.slice(0, 60)}" primary=${top50Primary.length} secondary=${secondaryDeduped.length}`
-    );
-
     // Strict mode: active when explicit type/color/gender/budget filter was applied.
-    // In strict mode, LLM only ranks + reasons; all primary products go to items.
     const hasHardFilter = !!(querySignals.type || querySignals.colors.size > 0 || querySignals.genders.size > 0 || hasBudgetMax || hasBudgetMin);
 
-    // Include secondary candidates in the LLM call so they get Hungarian descriptions too
-    const MAX_SECONDARY_FOR_LLM = 8;
-    const secondaryForLLM = secondaryDeduped.slice(0, MAX_SECONDARY_FOR_LLM);
+    // ----------------------------------------------------------------
+    // INSTANT PATH: ha az importált katalógusnak van előre generált
+    // AI leirása (ai_description), teljesen kihagyjuk az LLM-et.
+    // Embedding-rangsor + tárolt leirás → <200ms válaszidő.
+    // ----------------------------------------------------------------
+    const catalogHasDescriptions = allProducts.length > 0 && !!(allProducts[0] as any).ai_description;
 
-    // When primary is empty (colorFilterSkipped), pass secondary to LLM as input
-    // but track that all results should appear in also_items (not items)
-    const noLLMPrimary = top50Primary.length === 0 && secondaryForLLM.length > 0;
-    const productsForLLM = noLLMPrimary ? secondaryForLLM : top50Primary;
-    const secondaryInput = noLLMPrimary ? [] : secondaryForLLM;
+    // FAST PATH fallback: ha nincs előre generált leirás de van explicit szűrő
+    const FAST_PATH = !catalogHasDescriptions && hasHardFilter && top50Primary.length >= 4;
 
-    const rerankResult = await rerankWithLLM(user, productsForLLM, {
-      strictMode: hasHardFilter && !noLLMPrimary,
-      secondaryProducts: secondaryInput,
-    });
+    let rerankResult: { items: { product: any; reason: string }[]; also_items: { product: any; reason: string }[]; notice?: string | null };
 
-    // When colorFilterSkipped: all LLM results go to also_items (not items)
-    if (noLLMPrimary) {
-      rerankResult.also_items = [...rerankResult.items, ...rerankResult.also_items];
-      rerankResult.items = [];
+    function getAiReason(p: any): string {
+      return (p as any).ai_description || buildCardDescription(p) || (p as any).name || "Ajánlott termék";
+    }
+
+    if (catalogHasDescriptions) {
+      // INSTANT PATH: nincs LLM, embedding-rangsor + tárolt leirás
+      const primaryItems = top50Primary.slice(0, 8);
+      // also_items: ha < 5 pontos találat, mutatjuk a legközelebbi alternatívákat
+      // (secondary = hybridSearch candidates nem kerültek primaryba → hasonló típusú, más színű termékek)
+      const alsoForInstant = primaryItems.length < 5 ? secondaryDeduped.slice(0, 6) : [];
+      console.log(`[recommend] INSTANT PATH: site=${siteKey} query="${queryText.slice(0, 60)}" primary=${primaryItems.length} also=${alsoForInstant.length}`);
+      rerankResult = {
+        items: primaryItems.map((p) => ({ product: p, reason: getAiReason(p) })),
+        also_items: alsoForInstant.map((p) => ({ product: p, reason: getAiReason(p) })),
+        notice: null,
+      };
+    } else if (FAST_PATH) {
+      // FAST PATH: LLM csak 8 termékre reason-t ír (leirás generálás nélkül importált katalógus)
+      const fastPrimary = top50Primary.slice(0, 8);
+      console.log(`[recommend] FAST PATH: site=${siteKey} query="${queryText.slice(0, 60)}" primary=${fastPrimary.length}`);
+      const llmResult = await rerankWithLLM(user, fastPrimary, {
+        strictMode: true,
+        secondaryProducts: [],
+      });
+      rerankResult = {
+        items: (llmResult.items.length > 0 ? llmResult.items : fastPrimary.map((p) => ({
+          product: p,
+          reason: buildCardDescription(p as any) || (p as any).name || "Ajánlott termék",
+        }))).slice(0, 8),
+        also_items: secondaryDeduped.slice(0, 6).map((p) => ({
+          product: p,
+          reason: buildCardDescription(p as any) || (p as any).name || "Ajánlott termék",
+        })),
+        notice: null,
+      };
+    } else {
+      // LLM PATH: általános/kétértelmű lekérdezés, embedding-rangsor nem elég
+      console.log(
+        `[recommend] LLM rerank: site=${siteKey} query="${queryText.slice(0, 60)}" primary=${top50Primary.length} secondary=${secondaryDeduped.length}`
+      );
+
+      const MAX_SECONDARY_FOR_LLM = 8;
+      const secondaryForLLM = secondaryDeduped.slice(0, MAX_SECONDARY_FOR_LLM);
+
+      // When primary is empty (colorFilterSkipped), pass secondary to LLM as input
+      const noLLMPrimary = top50Primary.length === 0 && secondaryForLLM.length > 0;
+      const productsForLLM = noLLMPrimary ? secondaryForLLM : top50Primary;
+      const secondaryInput = noLLMPrimary ? [] : secondaryForLLM;
+
+      rerankResult = await rerankWithLLM(user, productsForLLM, {
+        strictMode: hasHardFilter && !noLLMPrimary,
+        secondaryProducts: secondaryInput,
+      });
+
+      // When colorFilterSkipped: all LLM results go to also_items
+      if (noLLMPrimary) {
+        rerankResult.also_items = [...rerankResult.items, ...rerankResult.also_items];
+        rerankResult.items = [];
+      }
     }
 
     // ================================================================
-    // Stage 5: Merge results
-    // items = full matches (all primary in strict mode, LLM picks otherwise)
-    // also_items = LLM also_items (non-strict) + secondary candidates
+    // Stage 5: Merge results (csak LLM PATH-ban fut)
     // ================================================================
 
-    if (hasHardFilter && !noLLMPrimary) {
-      // Strict mode: guarantee ALL primary products appear in items.
-      // Merge LLM's items+also_items (LLM-ordered items first), then fill from top50Primary.
-      const seen = new Set<number>();
-      const merged: typeof rerankResult.items = [];
-      for (const it of [...rerankResult.items, ...rerankResult.also_items]) {
-        const idx = top50Primary.indexOf(it.product);
-        if (idx === -1 || seen.has(idx)) continue;
-        seen.add(idx);
-        merged.push(it);
-      }
-      // Add any primary products the LLM missed
-      for (let i = 0; i < top50Primary.length; i++) {
-        if (!seen.has(i)) {
-          const p = top50Primary[i] as any;
-          merged.push({ product: top50Primary[i], reason: buildCardDescription(top50Primary[i] as any) || p.name || "Ajánlott termék" });
+    if (!catalogHasDescriptions && !FAST_PATH) {
+      const noLLMPrimaryMerge = top50Primary.length === 0;
+      if (hasHardFilter && !noLLMPrimaryMerge) {
+        // Strict mode: guarantee ALL primary products appear in items.
+        const seen = new Set<number>();
+        const merged: typeof rerankResult.items = [];
+        for (const it of [...rerankResult.items, ...rerankResult.also_items]) {
+          const idx = top50Primary.indexOf(it.product);
+          if (idx === -1 || seen.has(idx)) continue;
+          seen.add(idx);
+          merged.push(it);
+        }
+        for (let i = 0; i < top50Primary.length; i++) {
+          if (!seen.has(i)) {
+            const p = top50Primary[i] as any;
+            merged.push({ product: top50Primary[i], reason: buildCardDescription(top50Primary[i] as any) || p.name || "Ajánlott termék" });
+          }
+        }
+        rerankResult.items = merged.slice(0, 8);
+        rerankResult.also_items = [];
+      } else if (!noLLMPrimaryMerge) {
+        // Non-strict: safety net if LLM put too few in items
+        const MIN_ITEMS = Math.min(4, top50Primary.length);
+        while (rerankResult.items.length < MIN_ITEMS && rerankResult.also_items.length > 0) {
+          rerankResult.items.push(rerankResult.also_items.shift()!);
         }
       }
-      rerankResult.items = merged.slice(0, 8);
-      rerankResult.also_items = [];
-    } else if (!noLLMPrimary) {
-      // Non-strict: safety net if LLM put too few in items
-      const MIN_ITEMS = Math.min(4, top50Primary.length);
-      while (rerankResult.items.length < MIN_ITEMS && rerankResult.also_items.length > 0) {
-        rerankResult.items.push(rerankResult.also_items.shift()!);
-      }
     }
-    // When noLLMPrimary: items=[], also_items=LLM results (already set above)
 
     // No full match case: hard filter active but 0 primary products
     const noExactMatch = hasHardFilter && rerankResult.items.length === 0;
+    // Few matches: 1-4 exact results — show supplementary also_items with a note
+    const fewMatches = hasHardFilter && rerankResult.items.length > 0 && rerankResult.items.length < 5 && rerankResult.also_items.length > 0;
 
     const items = rerankResult.items.map(mapProductResponse);
     const alsoItems = rerankResult.also_items.map(mapProductResponse);
 
-    // Notice: shown when no exact match found
+    // Notice: shown when no exact match or few matches
     let notice: string | null = null;
     if (colorFilterSkipped) {
       const colorList = [...querySignals.colors].join("/");
@@ -780,6 +833,8 @@ router.post("/recommend", async (req, res) => {
       notice = `${priceStr} ${querySignals.type || "termék"} nem szerepel a kínálatban. Íme a legközelebb eső alternatívák:`;
     } else if (noExactMatch) {
       notice = "A keresett termék nem szerepel a kínálatban. Íme a legközelebb eső alternatívák:";
+    } else if (fewMatches) {
+      notice = `Csak ${items.length} pontos találat van — hasonló alternatívák is láthatók alább.`;
     } else {
       notice = rerankResult.notice || null;
     }

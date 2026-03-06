@@ -4,6 +4,7 @@ import { listCatalogs, replaceCatalog, deleteCatalog } from "../services/product
 import { getAllStats } from "../services/statsService";
 import { Product } from "../models/Product";
 import { embedProductsInBatches } from "../ai/embeddings";
+import { generateProductDescriptions } from "../ai/generateDescriptions";
 import { listAllFeedback, updateFeedback } from "../services/feedbackService";
 import {
   createPartner,
@@ -112,9 +113,20 @@ router.post("/import-products", async (req, res) => {
       });
     }
 
-    replaceCatalog(site_key, productsWithEmbeddings, true);
+    // Generate AI descriptions for all products (once at import time)
+    let productsWithDescriptions = productsWithEmbeddings;
+    try {
+      console.log(`[admin] Generating AI descriptions for ${productsWithEmbeddings.length} products...`);
+      productsWithDescriptions = await generateProductDescriptions(productsWithEmbeddings);
+      const descCount = productsWithDescriptions.filter((p: any) => !!p.ai_description).length;
+      console.log(`[admin] AI descriptions generated: ${descCount}/${productsWithDescriptions.length}`);
+    } catch (e) {
+      console.error("[admin] Description generation failed (non-fatal, continuing without):", e);
+    }
 
-    const embeddedCount = productsWithEmbeddings.filter((p: any) => Array.isArray(p.embedding)).length;
+    replaceCatalog(site_key, productsWithDescriptions, true);
+
+    const embeddedCount = productsWithDescriptions.filter((p: any) => Array.isArray(p.embedding)).length;
 
     return res.json({
       ok: true,

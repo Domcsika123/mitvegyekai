@@ -166,6 +166,12 @@ const TYPE_SYNONYMS: Record<string, string> = {
   "ékszer": "ékszer",
   ekszer: "ékszer",
   jewelry: "ékszer",
+
+  // Accessories (broad)
+  "kiegészítő": "kiegészítő",
+  kiegeszito: "kiegészítő",
+  accessories: "kiegészítő",
+  accessory: "kiegészítő",
 };
 
 // Gender indicators

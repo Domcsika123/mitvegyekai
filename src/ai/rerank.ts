@@ -318,13 +318,15 @@ export async function rerankWithLLM(
     cleanName = cleanName.replace(/\s*\((?:[^()]*|\([^()]*\))*\)\s*$/, "").trim();
     cleanName = cleanName.replace(/\s*[-–\/|]\s*(XXS|XS|S|M|L|XL|XXL|XXXL|2XL|3XL|4XL|\d{2,3})\s*$/i, "").trim();
 
+    const aiDesc = typeof (p as any).ai_description === "string" ? (p as any).ai_description : undefined;
+
     return {
       index: idx,
       product_id: (p as any).product_id,
       name: cleanName || p.name,
       price: p.price,
       category: catLast,
-      description: cleanDesc,
+      description: aiDesc || cleanDesc,
     };
   });
 
@@ -355,7 +357,7 @@ OUTPUT: JSON only.
 
 REASON RULES:
 - Write ALL reasons in HUNGARIAN language
-- MINIMUM 80 characters, maximum 160 — SHORT descriptions are NOT acceptable
+- MINIMUM 60 characters, maximum 120 — be concise but informative
 - Include ALL available details: color, material (weight, composition), fit (oversized, slim, relaxed), special features (collaboration, limited edition, graphic description, special technique)
 - Do NOT repeat the product name or brand — it's already in the title
 - Do NOT end with "a kényelmes viseletért", "biztosít", "tökéletes", "kiváló" — BANNED
@@ -387,7 +389,7 @@ ${secondaryNote}
 
 REASON RULES:
 - Write ALL reasons in HUNGARIAN language
-- 60–130 characters per reason — include meaningful details, not filler
+- 60–110 characters per reason — concise, meaningful details only
 - Include: color (if detectable), type, material, and 2-3 key features from the description
 - Do NOT repeat the product name or brand — it's already in the title
 - Do NOT end with "a kényelmes viseletért", "biztosít", "tökéletes", "kiváló" — BANNED
@@ -476,7 +478,6 @@ ${JSON.stringify(productList)}
           { role: "user", content: userPrompt },
         ],
         temperature: 0.3,
-        max_tokens: 900,
       });
 
       const raw = response.choices[0]?.message?.content || "";

@@ -16,4 +16,7 @@ export type Product = {
 
   // ✅ Importkor töltjük (előre legyártott termék embedding)
   embedding?: number[];
+
+  // ✅ Import-time AI description (Hungarian, generated once, used as reason at recommendation time)
+  ai_description?: string;
 };
