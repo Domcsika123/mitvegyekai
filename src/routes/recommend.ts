@@ -693,7 +693,14 @@ router.post("/recommend", async (req, res) => {
 
     // Deduplicate size variants before LLM (same product in multiple sizes → 1 entry)
     const primaryDeduped = dedupeByBaseProduct(primary);
-    const secondaryDeduped = dedupeByBaseProduct(secondary);
+    const secondaryRaw = dedupeByBaseProduct(secondary);
+    // Sort also_items: type-matching products first (e.g. other swimwear before unrelated items)
+    const secondaryDeduped = querySignals.type
+      ? [
+          ...secondaryRaw.filter((p) => productMatchesType(p, querySignals.type!)),
+          ...secondaryRaw.filter((p) => !productMatchesType(p, querySignals.type!)),
+        ]
+      : secondaryRaw;
 
     // ================================================================
     // Stage 4: LLM rerank (top 28 primary → items + also_items)
