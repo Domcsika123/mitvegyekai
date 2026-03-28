@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mitvegyek.ai – Partner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 24px; background: #f3f4f6; }
+    .mv-container { max-width: 900px; margin: 0 auto; }
+    .mv-topbar { margin-bottom: 16px; }
+    .mv-card { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 18px 20px; margin-bottom: 18px; }
+    .mv-small { font-size: 13px; color: #4b5563; }
+    .mv-label { font-size: 12px; color: #6b7280; margin-top: 10px; }
+    .mv-value { font-size: 14px; color: #111827; font-weight: 700; }
+
+    .mv-code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      background: #111827;
+      color: #e5e7eb;
+      padding: 8px 10px;
+      border-radius: 8px;
+      white-space: nowrap;
+      overflow-x: auto;
+      display: block;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 640px) {
+      #p-api-key.mv-code-like {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+        background: #0b1220;
+        color: #dbeafe;
+        padding: 8px 10px;
+        border-radius: 8px;
+        white-space: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        display: block;
+        margin-top: 4px;
+        max-width: 100%;
+      }
+    }
+
+    .mv-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; border: none; cursor: pointer; padding: 6px 14px; font-size: 13px; margin-top: 10px; margin-right: 8px; }
+    .mv-btn-primary { background: #2563eb; color: white; }
+    .mv-btn-primary:hover { background: #1d4ed8; }
+    .mv-btn-danger { background: #ef4444; color: white; }
+    .mv-btn-danger:hover { background: #dc2626; }
+    .mv-btn-secondary { background: #e5e7eb; color: #111827; }
+    .mv-btn-secondary:hover { background: #d1d5db; }
+
+    .mv-status { font-size: 13px; margin: 0; white-space: nowrap; }
+    .mv-status-error { color: #b91c1c; }
+    .mv-status-ok { color: #166534; }
+
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      padding: 10px 12px;
+      font-size: 13px;
+      outline: none;
+      min-height: 110px;
+      resize: vertical;
+      background: #fff;
+    }
+    textarea:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.15);
+    }
+
+  </style>
+
+  <script>
+    (function () {
+      const token = localStorage.getItem("mv_admin_token");
+      if (!token) {
+        window.location.href = "/admin-login.html";
+        return;
+      }
+      window.MV_ADMIN_TOKEN = token;
+    })();
+
+    async function adminFetch(url, options) {
+      const opts = options || {};
+      const headers = Object.assign({}, opts.headers || {}, {
+        "x-admin-token": window.MV_ADMIN_TOKEN
+      });
+      opts.headers = headers;
+
+      const res = await fetch(url, opts);
+      if (res.status === 401) {
+        localStorage.removeItem("mv_admin_token");
+        window.location.href = "/admin-login.html";
+      }
+      return res;
+    }
+  </script>
+</head>
+<body>
+  <div class="mv-container">
+    <div class="mv-topbar">
+      <button id="back-btn" class="mv-btn mv-btn-secondary">← Vissza a partnerekhez</button>
+    </div>
+
+    <div class="mv-card" id="partner-card">
+      <h1>Partner részletek</h1>
+      <p class="mv-small">Itt látod a partner (webshop) API adatait, a domain whitelistet és a beágyazási kódot.</p>
+
+      <p class="mv-status" id="status"></p>
+
+      <div id="partner-content" style="display:none;">
+        <div>
+          <div class="mv-label">Partner neve</div>
+          <div class="mv-value" id="p-name"></div>
+        </div>
+
+        <div>
+          <div class="mv-label">site_key</div>
+          <div class="mv-value" id="p-site-key"></div>
+        </div>
+
+        <div>
+          <div class="mv-label">api_key</div>
+          <div class="mv-value mv-code-like" id="p-api-key"></div>
+          <button id="rotate-btn" class="mv-btn mv-btn-danger">Új API kulcs generálása</button>
+          <div class="mv-small" style="margin-top:6px;">
+            Figyelem: a régi kulccsal a widget azonnal nem fog működni.
+          </div>
+        </div>
+
+        <div>
+          <div class="mv-label">Megengedett domainek (CORS whitelist)</div>
+
+          <div class="mv-small" id="domains-help">
+            Írhatsz soronként, vesszővel vagy szóközzel is (pl. <b>shop1.hu</b>, <b>www.shop1.hu</b>, <b>shop1.eu</b>).<br/>
+            Teljes URL is jó (pl. <b>https://shop1.hu/akarmi</b>) — automatikusan hostra tisztítjuk.
+          </div>
+
+          <textarea id="domains"></textarea>
+          <div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
+            <button id="save-domains-btn" class="mv-btn mv-btn-primary" style="margin-top: 0; margin-right: 0;">Domainek mentése</button>
+            <div id="domains-msg" class="mv-status"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="mv-label">Létrehozva</div>
+          <div class="mv-value" id="p-created"></div>
+        </div>
+
+        <div style="margin-top: 12px;">
+          <div class="mv-label">Beágyazási kód</div>
+          <code class="mv-code" id="embed-code"></code>
+          <button id="copy-btn" class="mv-btn mv-btn-primary">Kód másolása</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    document.getElementById("back-btn").addEventListener("click", () => {
+      sessionStorage.setItem('mv_admin_active_tab', 'tab-partners');
+      window.location.href = "/admin.html";
+    });
+
+    function setStatus(text, ok) {
+      const el = document.getElementById("status");
+      el.textContent = text || "";
+      el.className = "mv-status" + (ok === true ? " mv-status-ok" : ok === false ? " mv-status-error" : "");
+    }
+
+    function normalizeDomainToken(token) {
+      let s = String(token || "").trim().toLowerCase();
+      if (!s) return "";
+      s = s.replace(/^https?:\/\//, "");
+      s = s.split("/")[0].split("?")[0].split("#")[0];
+      s = s.split(":")[0];
+      return s.trim();
+    }
+
+    function parseDomains(raw) {
+      const text = String(raw || "");
+      const tokens = text.split(/[\n,\s]+/g).map(normalizeDomainToken).filter(Boolean);
+      const seen = new Set();
+      const out = [];
+      for (const t of tokens) {
+        if (!seen.has(t)) {
+          seen.add(t);
+          out.push(t);
+        }
+      }
+      return out;
+    }
+
+    let domainsMsgTimer = null;
+    function setDomainsMsg(text, ok) {
+      const msg = document.getElementById("domains-msg");
+      msg.textContent = text || "";
+      msg.className = "mv-status" + (ok === true ? " mv-status-ok" : ok === false ? " mv-status-error" : "");
+
+      if (ok === true && text) {
+        if (domainsMsgTimer) clearTimeout(domainsMsgTimer);
+        domainsMsgTimer = setTimeout(() => {
+          msg.textContent = "";
+          msg.className = "mv-status";
+        }, 2000);
+      }
+    }
+
+    function makeExampleBaseFromSiteKey(siteKey) {
+      const sk = String(siteKey || "shop").trim().toLowerCase();
+      const safe = sk.replace(/[^a-z0-9-]/g, "") || "shop";
+      return safe;
+    }
+
+    async function loadPartner() {
+      const contentEl = document.getElementById("partner-content");
+      const siteKey = getQueryParam("site_key");
+
+      if (!siteKey) {
+        setStatus("Hiányzó site_key a URL-ben.", false);
+        return false;
+      }
+
+      setStatus("Betöltés...", null);
+
+      try {
+        const res = await adminFetch(`/api/admin/partners/${encodeURIComponent(siteKey)}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "Nem sikerült lekérni a partner adatait.");
+        }
+
+        const data = await res.json();
+        const p = data.partner;
+
+        const origin = window.location.origin;
+        const embedCode =
+          `<script src="${origin}/widget.js" data-site-key="${p.site_key}" data-api-key="${p.api_key}"></` +
+          `script>`;
+
+        document.getElementById("p-name").textContent = p.name;
+        document.getElementById("p-site-key").textContent = p.site_key;
+        document.getElementById("p-api-key").textContent = p.api_key;
+
+        const base = makeExampleBaseFromSiteKey(p.site_key);
+        const help = document.getElementById("domains-help");
+        if (help) {
+          help.innerHTML =
+            `Írhatsz soronként, vesszővel vagy szóközzel is (pl. <b>${base}.hu</b>, <b>www.${base}.hu</b>, <b>${base}.eu</b>).<br/>` +
+            `Teljes URL is jó (pl. <b>https://${base}.hu/akarmi</b>) — automatikusan hostra tisztítjuk.`;
+        }
+
+        const createdRaw = p.created_at || p.createdAt || p.created_at_iso || p.created;
+        document.getElementById("p-created").textContent = createdRaw
+          ? new Date(createdRaw).toLocaleString("hu-HU")
+          : "-";
+
+        document.getElementById("embed-code").textContent = embedCode;
+
+        const copyBtn = document.getElementById("copy-btn");
+        copyBtn.onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(embedCode);
+            const old = copyBtn.textContent;
+            copyBtn.textContent = "Kimásolva ✔";
+            setTimeout(() => (copyBtn.textContent = old), 1500);
+          } catch (e) {
+            console.error(e);
+          }
+        };
+
+        const domains = Array.isArray(p.allowed_domains) ? p.allowed_domains : [];
+        document.getElementById("domains").value = domains.join("\n");
+
+        document.getElementById("save-domains-btn").onclick = async () => {
+          setDomainsMsg("", null);
+
+          const raw = document.getElementById("domains").value || "";
+          const list = parseDomains(raw);
+
+          try {
+            const r = await adminFetch(`/api/admin/partners/${encodeURIComponent(siteKey)}/allowed-domains`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ allowed_domains: list }),
+            });
+
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(d.error || "Mentés sikertelen.");
+
+            document.getElementById("domains").value = list.join("\n");
+            setDomainsMsg("Mentve ✔", true);
+          } catch (e) {
+            setDomainsMsg(e.message || "Hiba", false);
+          }
+        };
+
+        document.getElementById("rotate-btn").onclick = async () => {
+          if (!confirm("Biztosan új API kulcsot generálsz? A régi azonnal érvénytelen lesz.")) return;
+
+          try {
+            const r = await adminFetch(`/api/admin/partners/${encodeURIComponent(siteKey)}/rotate-key`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({}),
+            });
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(d.error || "Sikertelen rotálás.");
+
+            const np = d.partner;
+            document.getElementById("p-api-key").textContent = np.api_key;
+
+            const newEmbedCode =
+              `<script src="${origin}/widget.js" data-site-key="${np.site_key}" data-api-key="${np.api_key}"></` +
+              `script>`;
+            document.getElementById("embed-code").textContent = newEmbedCode;
+
+            setStatus("API kulcs frissítve ✔", true);
+            setTimeout(() => setStatus("", null), 1200);
+          } catch (e) {
+            setStatus(e.message || "Hiba", false);
+          }
+        };
+
+        setStatus("", null);
+        contentEl.style.display = "block";
+        return true;
+      } catch (err) {
+        console.error(err);
+        setStatus(err.message || "Hiba történt.", false);
+        return false;
+      }
+    }
+    loadPartner();
+  </script>
+</body>
+</html>

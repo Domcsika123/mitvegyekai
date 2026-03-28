@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mitvegyek.ai – Partner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* ✅ fix: inputok ne lógjanak ki (padding+border miatt) */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;padding:24px;background:#f3f4f6;overflow-y:scroll;}
+    .mv-container{max-width:1100px;margin:0 auto;}
+    .mv-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;}
+    .mv-card{background:white;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.05);padding:18px 20px;margin-bottom:18px;}
+    h1{margin:0 0 4px 0;}
+    .mv-catalog-label{font-size:14px;color:#111827;font-weight:600;margin-top:4px;}
+    .mv-small{font-size:13px;color:#4b5563;font-weight:400;}
+    .mv-btn{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;border:none;cursor:pointer;padding:8px 14px;font-size:13px;white-space:nowrap;font-weight:600;}
+    .mv-btn-primary{background:#2563eb;color:#fff;}
+    .mv-btn-primary:hover{background:#1d4ed8;}
+    .mv-btn-secondary{background:#e5e7eb;color:#111827;}
+    .mv-btn-secondary:hover{background:#d1d5db;}
+    .mv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px;}
+    .mv-box{border-radius:10px;padding:12px;background:#f9fafb;border:1px solid #e5e7eb;min-width:0;}
+    .mv-kpi{font-size:28px;font-weight:800;margin-top:4px;}
+    .mv-pill{display:inline-flex;gap:8px;align-items:center;border:1px solid #e5e7eb;background:white;padding:6px 10px;border-radius:999px;font-size:12px;margin:4px 6px 0 0;}
+    .mv-count{font-weight:700;background:#111827;color:#fff;padding:2px 8px;border-radius:999px;font-size:11px;}
+    .mv-status{margin-top:8px;font-size:13px;font-weight:400;}
+    .ok{color:#166534;}
+    .err{color:#b91c1c;}
+    label{font-size:12px;color:#4b5563;display:block;margin-top:10px;margin-bottom:4px;font-weight:400;}
+
+    input, textarea, select{
+      width:100%;
+      border-radius:10px;
+      border:1px solid #d1d5db;
+      padding:10px 10px;
+      font-size:14px;
+      max-width:100%;
+      display:block;
+      font-weight:400;
+      box-sizing: border-box;
+    }
+    textarea{min-height:120px;resize:vertical;}
+    input:focus, textarea:focus, select:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 1px #2563eb33;}
+    table{border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed;}
+    th,td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:middle;word-break:break-word;}
+    th{font-weight:600;color:#374151;}
+    code{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-size:12px;background:#111827;color:#e5e7eb;padding:3px 6px;border-radius:6px;}
+
+    /* ===== TABS ===== */
+    .mv-tabs{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin: 4px 0 14px 0;
+    }
+    /* ✅ nem félkövér a tab */
+    .mv-tab-btn{
+      border:1px solid #e5e7eb;
+      background:#fff;
+      color:#111827;
+      padding:8px 12px;
+      border-radius:999px;
+      cursor:pointer;
+      font-size:13px;
+      font-weight:600;
+    }
+    .mv-tab-btn.active{
+      background:#2563eb;
+      border-color:#2563eb;
+      color:#fff;
+      font-weight:600;
+    }
+    .mv-tab-panel{ display:none; }
+    .mv-tab-panel.active{ display:block; }
+
+    /* ===== CHART UI ===== */
+    .mv-chart-wrap{
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+      background:#fff;
+      padding:10px;
+      overflow:hidden;
+    }
+    .mv-chart-grid{
+      display:grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap:12px;
+      margin-top:12px;
+    }
+    .mv-kpi-mini{
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+      padding:10px;
+      background:#fff;
+    }
+    .mv-kpi-mini .val{ font-size:20px; font-weight:800; margin-top:2px; }
+    .mv-chart-top{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:8px;
+    }
+    .mv-chart-sub{ font-size:13px; color:#4b5563; font-weight:400; }
+    .mv-chart-btns{ display:flex; gap:8px; flex-wrap:wrap; }
+
+    .mv-table-scroll{
+      margin-top:10px;
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+      background:#fff;
+      overflow:auto;
+      max-height: 320px;
+    }
+
+    /* ✅ refresh hint: bal oldalt, zöld, nem félkövér */
+    .mv-refresh-hint{
+      color:#166534;
+      font-weight:400;
+      font-size:13px;
+      display:none;
+      margin-right:8px;
+      white-space:nowrap;
+    }
+
+    @media (max-width: 640px){
+      /* Mobilon a refreshHint a kijelentkezes mellett jobb oldalt legyen */
+      .mv-refresh-hint{
+        margin-right: 0;
+        margin-left: 8px;
+        order: 3;
+      }
+      #btnLogout{
+        order: 2;
+      }
+    }
+
+    @media (max-width: 860px){
+      .mv-chart-grid{ grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px){
+      body{ padding: 14px; }
+      .mv-container{ width: 100%; overflow-x: hidden; }
+      .mv-card{ padding: 14px; margin-bottom: 14px; }
+      .mv-grid{ grid-template-columns: 1fr !important; }
+      .mv-chart-grid{ grid-template-columns: 1fr !important; }
+      canvas{ width: 100% !important; height: auto !important; max-width: 100%; }
+      .mv-chart-wrap{ padding: 8px; overflow: visible; }
+    }
+
+    /* ✅ ne legyen félkövér: tabok + gombok */
+    .mv-tab-btn,
+    .mv-btn{
+        font-weight: 400 !important;
+    }
+
+  </style>
+
+  <script>
+    (function () {
+      const t = localStorage.getItem("mv_partner_token");
+      if (!t) {
+        window.location.href = "/partner-login.html";
+        return;
+      }
+      window.MV_PARTNER_TOKEN = t;
+    })();
+
+    async function partnerFetch(url, options) {
+      const token = window.MV_PARTNER_TOKEN;
+      const opts = options || {};
+      opts.headers = Object.assign({}, opts.headers || {}, {
+        "Authorization": "Bearer " + token
+      });
+      const res = await fetch(url, opts);
+      if (res.status === 401) {
+        localStorage.removeItem("mv_partner_token");
+        localStorage.removeItem("mv_partner_site_key");
+        window.location.href = "/partner-login.html";
+      }
+      return res;
+    }
+
+    function escapeHtml(s) {
+      return String(s || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function topEntries(obj, limit) {
+      const entries = Object.entries(obj || {});
+      entries.sort((a, b) => (b[1] || 0) - (a[1] || 0));
+      return entries.slice(0, limit);
+    }
+
+    function renderPills(container, entries, emptyText) {
+      container.innerHTML = "";
+      if (!entries || entries.length === 0) {
+        container.innerHTML = `<div class="mv-small">${escapeHtml(emptyText || "Nincs adat.")}</div>`;
+        return;
+      }
+      for (const [k, v] of entries) {
+        const pill = document.createElement("div");
+        pill.className = "mv-pill";
+        pill.innerHTML = `<span>${escapeHtml(k)}</span><span class="mv-count">${escapeHtml(String(v||0))}</span>`;
+        container.appendChild(pill);
+      }
+    }
+
+    function fmtDateTime(v){
+      if(!v) return "-";
+      try{ const d=new Date(v); if(isNaN(d.getTime())) return "-"; return d.toLocaleString("hu-HU"); }catch{ return "-"; }
+    }
+
+    /* ===== TOP WORDS: interestsCount kulcsok szavakra bontása ===== */
+    const MV_STOPWORDS = new Set([
+      "a","az","és","meg","de","hogy","nem","is","van","volt","vagy","mert","mint",
+      "szereti","szeret","legyen","kell","nagyon","inkább","inkabb","csak"
+    ]);
+
+    function tokenizeWords(str){
+      const s = String(str || "").toLowerCase();
+      try{
+        const parts = s.replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(/\s+/g);
+        return parts.filter(Boolean);
+      }catch(_){
+        const parts = s.replace(/[^a-z0-9áéíóöőúüű]+/g, " ").trim().split(/\s+/g);
+        return parts.filter(Boolean);
+      }
+    }
+
+    function buildInterestWordCounts(interestsCountObj){
+      const out = new Map();
+      const src = interestsCountObj || {};
+      for (const [rawKey, rawCount] of Object.entries(src)){
+        const c = Number(rawCount || 0);
+        if (!c) continue;
+
+        const toks = tokenizeWords(rawKey)
+          .map(t => t.trim())
+          .filter(t => t.length >= 2)
+          .filter(t => !MV_STOPWORDS.has(t))
+          .filter(t => !/^\d+$/.test(t));
+
+        for (const w of toks){
+          out.set(w, (out.get(w) || 0) + c);
+        }
+      }
+      const obj = {};
+      for (const [k,v] of out.entries()) obj[k] = v;
+      return obj;
+    }
+
+    /* ===== CHART HELPERS (no library) ===== */
+    function sum(arr){ return (arr||[]).reduce((a,b)=>a+(Number(b)||0),0); }
+
+    function drawLineChart(canvas, labels, values) {
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const parent = canvas.parentElement;
+      const W = canvas.width = Math.max(320, parent ? parent.clientWidth : 700);
+      const H = canvas.height;
+
+      ctx.clearRect(0, 0, W, H);
+
+      const pad = 18;
+      const padRight = 40; // több hely az Y tengely számainak
+      const padBottom = 28; // több hely az X tengely szövegeihez
+      const innerW = W - pad - padRight;
+      const innerH = H - pad - padBottom;
+
+      const n = values.length;
+      if (n === 0) {
+        ctx.fillStyle = "#6b7280";
+        ctx.font = "13px system-ui, -apple-system, Segoe UI, sans-serif";
+        ctx.fillText("Még nincs adat a grafikonhoz.", pad, pad+18);
+        return;
+      }
+
+      const maxV = Math.max(1, ...values);
+      const minV = Math.min(0, ...values);
+
+      const x = (i) => pad + (n === 1 ? innerW/2 : (i * (innerW / (n - 1))));
+      const y = (v) => pad + (innerH - ((v - minV) / (maxV - minV || 1)) * innerH);
+
+      // grid + Y axis labels
+      ctx.globalAlpha = 0.12;
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 1;
+      for (let k = 0; k <= 4; k++) {
+        const yy = pad + (innerH * k / 4);
+        ctx.beginPath();
+        ctx.moveTo(pad, yy);
+        ctx.lineTo(W - padRight, yy);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // Y axis labels (jobb oldalt, belül a canvason)
+      ctx.fillStyle = "#4b5563";
+      ctx.font = "11px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      for (let k = 0; k <= 4; k++) {
+        const yy = pad + (innerH * k / 4);
+        const val = Math.round(minV + (maxV - minV) * (4 - k) / 4);
+        ctx.fillText(String(val), W - padRight + 8, yy);
+      }
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+
+      // line
+      ctx.strokeStyle = "#2563eb";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      values.forEach((v, i) => {
+        const px = x(i);
+        const py = y(v);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+
+      // points
+      ctx.fillStyle = "#2563eb";
+      values.forEach((v, i) => {
+        ctx.beginPath();
+        ctx.arc(x(i), y(v), 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // bottom labels (sparse)
+      ctx.fillStyle = "#4b5563";
+      ctx.font = "11px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      const step = n > 14 ? Math.ceil(n / 7) : 1;
+      for (let i = 0; i < n; i += step) {
+        const t = labels[i] || "";
+        const txt = t.length >= 10 ? t.slice(5) : t;
+        ctx.fillText(txt, x(i), pad + innerH + 14);
+      }
+    }
+
+    function setRangeButtons(activeDays){
+      const ids = {7:"range-7",30:"range-30",90:"range-90"};
+      [7,30,90].forEach(d=>{
+        const btn = document.getElementById(ids[d]);
+        if(!btn) return;
+        btn.classList.toggle("mv-btn-primary", d===activeDays);
+        btn.classList.toggle("mv-btn-secondary", d!==activeDays);
+      });
+
+      const sub = document.getElementById("mv-chart-sub");
+      if(sub) sub.textContent = `Utolsó ${activeDays} nap`;
+
+      const tblTitle = document.getElementById("dailyTableTitle");
+      if(tblTitle) tblTitle.textContent = `Napi bontás (táblázat) – utolsó ${activeDays} nap`;
+    }
+
+    function toYMD(dateObj){
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth()+1).padStart(2,"0");
+      const d = String(dateObj.getDate()).padStart(2,"0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function buildDailySeries(dailyRows, days){
+      const rows = Array.isArray(dailyRows) ? dailyRows : [];
+      const map = new Map();
+      rows.forEach(r=>{
+        const key = String(r.date || "");
+        if(!key) return;
+        map.set(key, Number(r.count || 0));
+      });
+
+      const labels = [];
+      const values = [];
+
+      const today = new Date();
+      for(let i = days - 1; i >= 0; i--){
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const key = toYMD(d);
+        labels.push(key);
+        values.push(map.get(key) || 0);
+      }
+      return { labels, values };
+    }
+
+    function buildTimingTotals(dailyTimings, days){
+      const rows = Array.isArray(dailyTimings) ? dailyTimings : [];
+      const map = new Map();
+      rows.forEach(r=>{
+        const key = String(r.date || "");
+        if(!key) return;
+        map.set(key, { sumMs: Number(r.sumMs||0), count: Number(r.count||0) });
+      });
+
+      const today = new Date();
+      let sumMs = 0;
+      let count = 0;
+
+      for(let i = 0; i < days; i++){
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const key = toYMD(d);
+        const v = map.get(key);
+        if(v){
+          sumMs += (v.sumMs||0);
+          count += (v.count||0);
+        }
+      }
+      return { sumMs, count };
+    }
+
+    function fmtDuration(ms){
+      const m = Number(ms||0);
+      if(!m) return "-";
+      if(m >= 1500) return (m/1000).toFixed(1) + "s";
+      return Math.round(m) + "ms";
+    }
+
+    let MV_DAILY = [];
+    let MV_RANGE = 30;
+
+    let MV_DAILY_RESP = [];
+    let MV_DAILY_CLICKS = [];
+
+    function updateChartFromDaily(dailyRows, days){
+      const { labels, values } = buildDailySeries(dailyRows, days);
+
+      const canvas = document.getElementById("mv-linechart");
+      drawLineChart(canvas, labels, values);
+
+      const total = sum(values);
+      const avg = values.length ? (total / values.length) : 0;
+
+      const peak = values.length ? Math.max(...values) : 0;
+      const peakIdx = values.length ? values.indexOf(peak) : -1;
+
+      // right side KPIs
+      const kAvg = document.getElementById("kpi-avg");
+      const kPeak = document.getElementById("kpi-peak");
+      const kPeriod = document.getElementById("kpi-period");
+      const kDelta = document.getElementById("kpi-delta");
+
+      if(kAvg) kAvg.textContent = avg.toFixed(1);
+      if(kPeak) kPeak.textContent = peakIdx>=0 ? `${labels[peakIdx]} • ${peak} kérés` : "-";
+      if(kPeriod) kPeriod.textContent = String(total);
+
+      // compare with previous same period
+      if(kDelta){
+        const s2 = buildDailySeries(dailyRows, days * 2);
+        const curr = sum(s2.values.slice(-days));
+        const prev = sum(s2.values.slice(-days*2, -days));
+        if(prev > 0){
+          const diff = ((curr - prev) / prev) * 100;
+          kDelta.textContent = `Előző ${days} naphoz képest: ${diff>=0?"+":""}${diff.toFixed(0)}%`;
+          kDelta.style.color = diff>=0 ? "#166534" : "#b91c1c";
+        }else{
+          kDelta.textContent = "";
+          kDelta.style.color = "";
+        }
+      }
+
+      // ✅ ÚJ: response time avg + clicks total
+      const rt = buildTimingTotals(MV_DAILY_RESP, days);
+      const avgMs = rt.count > 0 ? (rt.sumMs / rt.count) : 0;
+      const elRt = document.getElementById("kpi-rt");
+      if(elRt) elRt.textContent = avgMs ? fmtDuration(avgMs) : "-";
+
+      const c = buildDailySeries(MV_DAILY_CLICKS, days);
+      const clicksTotal = sum(c.values);
+      const elClicks = document.getElementById("kpi-clicks");
+      if(elClicks) elClicks.textContent = String(clicksTotal);
+
+      // table (latest on top)
+      const tbody = document.getElementById("dailyTbody");
+      if (!tbody) return;
+
+      tbody.innerHTML = "";
+      if(labels.length === 0){
+        tbody.innerHTML = "<tr><td colspan='2'>Még nincs adat.</td></tr>";
+      } else {
+        for(let i = labels.length - 1; i >= 0; i--){
+          const tr=document.createElement("tr");
+          tr.innerHTML = `<td>${escapeHtml(labels[i])}</td><td>${escapeHtml(String(values[i]||0))}</td>`;
+          tbody.appendChild(tr);
+        }
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <div class="mv-container">
+    <div class="mv-topbar">
+      <div>
+        <h1>Mitvegyek.ai – Partner</h1>
+        <div class="mv-catalog-label" id="subtitle">Betöltés...</div>
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <!-- ✅ refresh hint bal oldalt a gomb előtt -->
+        <span class="mv-refresh-hint" id="refreshHint">Frissítve.</span>
+        <button class="mv-btn mv-btn-secondary" id="btnRefresh" type="button">Frissítés</button>
+        <button class="mv-btn mv-btn-secondary" id="btnLogout" type="button">Kijelentkezés</button>
+      </div>
+    </div>
+
+    <div class="mv-tabs">
+      <button class="mv-tab-btn active" id="tabBtnStats" type="button">Statisztika</button>
+      <button class="mv-tab-btn" id="tabBtnFeedback" type="button">Bejelentések</button>
+    </div>
+
+    <!-- TAB: STATS -->
+    <div class="mv-tab-panel active" id="tabPanelStats">
+      <div class="mv-card" id="statsCard">
+        <h2 style="margin:0 0 6px 0;">Statisztikák</h2>
+        <div class="mv-small" id="statsInfo"></div>
+
+        <!-- ✅ KIVÉVE: a grafikon feletti 3 box -->
+
+        <div class="mv-box" style="margin-top:12px; background:#f9fafb;">
+          <div class="mv-chart-top">
+            <div>
+              <div style="font-weight:700; margin-bottom:2px;">Napi bontás</div>
+              <div class="mv-chart-sub" id="mv-chart-sub">Utolsó 30 nap</div>
+            </div>
+
+            <div class="mv-chart-btns">
+              <button class="mv-btn mv-btn-secondary" id="range-7" type="button">7 nap</button>
+              <button class="mv-btn mv-btn-secondary" id="range-30" type="button">30 nap</button>
+              <button class="mv-btn mv-btn-secondary" id="range-90" type="button">90 nap</button>
+            </div>
+          </div>
+
+          <div class="mv-chart-grid">
+            <div class="mv-chart-wrap">
+              <canvas id="mv-linechart" height="170"></canvas>
+            </div>
+
+            <div style="display:grid; gap:10px;">
+              <div class="mv-kpi-mini">
+                <div class="mv-small">Átlag / nap</div>
+                <div class="val" id="kpi-avg">-</div>
+              </div>
+              <div class="mv-kpi-mini">
+                <div class="mv-small">Csúcsnap</div>
+                <div style="font-size:14px; font-weight:800;" id="kpi-peak">-</div>
+              </div>
+              <div class="mv-kpi-mini">
+                <div class="mv-small">Időszak összes</div>
+                <div class="val" id="kpi-period">-</div>
+                <div class="mv-small" id="kpi-delta" style="margin-top:2px;"></div>
+              </div>
+
+              <div class="mv-kpi-mini">
+                <div class="mv-small">Átlag válaszidő</div>
+                <div class="val" id="kpi-rt">-</div>
+              </div>
+              <div class="mv-kpi-mini">
+                <div class="mv-small">Termék megnyitás kattintás</div>
+                <div class="val" id="kpi-clicks">-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mv-grid">
+          <div class="mv-box">
+            <h3 style="margin:0 0 8px 0; font-size:14px; font-weight:700;">Top kulcsszavak</h3>
+            <div class="mv-small" style="margin-bottom:6px;">Az “Érdeklődés” mező szavaiból (automatikusan bontva).</div>
+            <div id="interestsBox"></div>
+          </div>
+
+          <div class="mv-box">
+            <h3 style="margin:0 0 8px 0; font-size:14px; font-weight:700;">Budget eloszlás</h3>
+            <div id="budgetBox"></div>
+          </div>
+
+          <div class="mv-box">
+            <h3 style="margin:0 0 8px 0; font-size:14px; font-weight:700;" id="dailyTableTitle">Napi bontás (táblázat) – utolsó 30 nap</h3>
+            <div class="mv-table-scroll">
+              <table>
+                <thead><tr><th style="width:45%;">Dátum</th><th>Kérések</th></tr></thead>
+                <tbody id="dailyTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="mv-status" id="statsStatus"></div>
+      </div>
+    </div>
+
+    <!-- TAB: FEEDBACK -->
+    <div class="mv-tab-panel" id="tabPanelFeedback">
+      <div class="mv-card" id="feedbackCard">
+        <h2 style="margin:0 0 6px 0;">Visszajelzés / Probléma bejelentés</h2>
+        <p class="mv-small" style="margin-top:0;">A beküldött bejelentéseket az admin oldalon látjuk és kezeljük.</p>
+
+        <div class="mv-grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));">
+          <div class="mv-box">
+            <label>Típus</label>
+            <select id="fbType">
+              <option value="hiba">Hiba</option>
+              <option value="kerdes">Kérdés</option>
+              <option value="otlet">Ötlet / feature</option>
+              <option value="egyeb">Egyéb</option>
+            </select>
+
+            <label>Tárgy</label>
+            <input id="fbSubject" placeholder="pl. Nem tölt be a widget mobilon" />
+
+            <label>Üzenet</label>
+            <textarea id="fbMessage" placeholder="Írd le részletesen, mit tapasztalsz..."></textarea>
+
+            <label>Oldal (opcionális)</label>
+            <input id="fbUrl" placeholder="pl. https://sajatwebaruhaz.hu/termek/123" />
+
+            <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+              <button class="mv-btn mv-btn-primary" id="btnSend" type="button">Beküldés</button>
+            </div>
+
+            <div class="mv-status" id="fbStatus"></div>
+          </div>
+
+          <div class="mv-box">
+            <h3 style="margin:0 0 8px 0; font-size:14px; font-weight:700;">Legutóbbi bejelentéseid</h3>
+            <div class="mv-small" id="fbListHint">Betöltés...</div>
+            <table>
+              <thead><tr><th style="width:35%;">Dátum</th><th style="width:30%;">Státusz</th><th>Tárgy</th></tr></thead>
+              <tbody id="fbTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function setStatus(el, text, ok){
+      if(!el) return;
+      el.textContent = text || "";
+      el.className = "mv-status " + (ok===true ? "ok" : ok===false ? "err" : "");
+    }
+
+    function initTabs(){
+      const btnStats = document.getElementById("tabBtnStats");
+      const btnFb = document.getElementById("tabBtnFeedback");
+      const pStats = document.getElementById("tabPanelStats");
+      const pFb = document.getElementById("tabPanelFeedback");
+
+      function show(which){
+        const isStats = which === "stats";
+        btnStats.classList.toggle("active", isStats);
+        btnFb.classList.toggle("active", !isStats);
+        pStats.classList.toggle("active", isStats);
+        pFb.classList.toggle("active", !isStats);
+      }
+
+      btnStats.addEventListener("click", async (e)=>{
+        e.preventDefault();
+        show("stats");
+        await loadStats();
+      });
+      btnFb.addEventListener("click", async (e)=>{
+        e.preventDefault();
+        show("fb");
+        await loadMyFeedback();
+      });
+    }
+
+    function initChartControls(){
+      document.getElementById("range-7")?.addEventListener("click", (e)=>{
+        e.preventDefault();
+        MV_RANGE = 7; setRangeButtons(7); updateChartFromDaily(MV_DAILY, 7);
+      });
+      document.getElementById("range-30")?.addEventListener("click", (e)=>{
+        e.preventDefault();
+        MV_RANGE = 30; setRangeButtons(30); updateChartFromDaily(MV_DAILY, 30);
+      });
+      document.getElementById("range-90")?.addEventListener("click", (e)=>{
+        e.preventDefault();
+        MV_RANGE = 90; setRangeButtons(90); updateChartFromDaily(MV_DAILY, 90);
+      });
+
+      window.addEventListener("resize", ()=>{
+        updateChartFromDaily(MV_DAILY, MV_RANGE);
+      });
+    }
+
+    async function loadStats(){
+      const statusEl = document.getElementById("statsStatus");
+      setStatus(statusEl, "Betöltés...", true);
+
+      const res = await partnerFetch("/api/partner/stats");
+      const data = await res.json().catch(()=> ({}));
+      if(!res.ok){ setStatus(statusEl, data.error || "Hiba a stat betöltésekor.", false); return; }
+
+      const stats = data.stats || {};
+      const siteKey = data.siteKey || stats.siteKey || localStorage.getItem("mv_partner_site_key") || "";
+      const subtitle = document.getElementById("subtitle");
+      if (subtitle) subtitle.innerHTML = `Katalógus: <code>${escapeHtml(siteKey)}</code>`;
+
+      const statsInfo = document.getElementById("statsInfo");
+      if (statsInfo) statsInfo.textContent = "A statok automatikusan gyűlnek minden ajánláskérés után.";
+
+      MV_DAILY = Array.isArray(stats.dailyCounts) ? stats.dailyCounts.slice() : [];
+      MV_DAILY_RESP = Array.isArray(stats.dailyResponseTimes) ? stats.dailyResponseTimes.slice() : [];
+      MV_DAILY_CLICKS = Array.isArray(stats.dailyProductOpenClicks) ? stats.dailyProductOpenClicks.slice() : [];
+
+      const wordCounts = buildInterestWordCounts(stats.interestsCount || {});
+      const interestsBox = document.getElementById("interestsBox");
+      if (interestsBox) renderPills(interestsBox, topEntries(wordCounts, 24), "Még nincs kulcsszó.");
+
+      const budgetBox = document.getElementById("budgetBox");
+      if (budgetBox) renderPills(budgetBox, Object.entries(stats.priceBuckets||{}), "Nincs budget adat.");
+
+      if (!window.__mvChartInit) {
+        window.__mvChartInit = true;
+        initChartControls();
+      }
+
+      if (!MV_RANGE) MV_RANGE = 30;
+      setRangeButtons(MV_RANGE);
+      updateChartFromDaily(MV_DAILY, MV_RANGE);
+
+      setStatus(statusEl, "", null);
+    }
+
+    async function loadMyFeedback(){
+      const hint = document.getElementById("fbListHint");
+      const tbody = document.getElementById("fbTbody");
+      if (hint) hint.textContent = "Betöltés...";
+      if (tbody) tbody.innerHTML = "";
+
+      const res = await partnerFetch("/api/partner/feedback");
+      const data = await res.json().catch(()=> ({}));
+      if(!res.ok){
+        if (hint) hint.textContent = "Nem sikerült betölteni.";
+        return;
+      }
+
+      const items = data.items || [];
+      if (hint) hint.textContent = items.length ? "" : "Még nincs bejelentésed.";
+      if (!tbody) return;
+
+      items.slice(0, 12).forEach(x=>{
+        const tr=document.createElement("tr");
+        tr.innerHTML = `<td>${escapeHtml(fmtDateTime(x.created_at))}</td><td>${escapeHtml(x.status)}</td><td>${escapeHtml(x.subject)}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById("btnSend").addEventListener("click", async ()=>{
+      const fbStatus = document.getElementById("fbStatus");
+      setStatus(fbStatus, "", null);
+
+      const type = document.getElementById("fbType").value;
+      const subject = (document.getElementById("fbSubject").value || "").trim();
+      const message = (document.getElementById("fbMessage").value || "").trim();
+      const page_url = (document.getElementById("fbUrl").value || "").trim();
+
+      if(!subject || !message){
+        setStatus(fbStatus, "A tárgy és az üzenet kötelező.", false);
+        return;
+      }
+
+      setStatus(fbStatus, "Küldés...", true);
+
+      const res = await partnerFetch("/api/partner/feedback", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ type, subject, message, page_url: page_url || undefined })
+      });
+
+      const data = await res.json().catch(()=> ({}));
+      if(!res.ok){
+        setStatus(fbStatus, data.error || "Hiba a beküldéskor.", false);
+        return;
+      }
+
+      setStatus(fbStatus, "Köszönjük! Bejelentés rögzítve.", true);
+      document.getElementById("fbSubject").value = "";
+      document.getElementById("fbMessage").value = "";
+      document.getElementById("fbUrl").value = "";
+
+      await loadMyFeedback();
+      setTimeout(()=> setStatus(fbStatus, "", null), 2500);
+    });
+
+    document.getElementById("btnLogout").addEventListener("click", ()=>{
+      localStorage.removeItem("mv_partner_token");
+      localStorage.removeItem("mv_partner_site_key");
+      window.location.href = "/partner-login.html";
+    });
+
+    // ✅ Frissítés visszajelzés bal oldalt, zöld, nem félkövér
+    let __refreshHintTimer = null;
+    function showRefreshHint(text){
+      const el = document.getElementById("refreshHint");
+      if(!el) return;
+      el.textContent = text || "Frissítve.";
+      el.style.display = "inline";
+      if(__refreshHintTimer) clearTimeout(__refreshHintTimer);
+      __refreshHintTimer = setTimeout(()=>{ el.style.display = "none"; }, 2500);
+    }
+
+    document.getElementById("btnRefresh").addEventListener("click", async ()=>{
+      const btn = document.getElementById("btnRefresh");
+      try{
+        if(btn) btn.disabled = true;
+        showRefreshHint("");
+
+        const statsActive = document.getElementById("tabPanelStats").classList.contains("active");
+        const fbActive = document.getElementById("tabPanelFeedback").classList.contains("active");
+
+        if(statsActive) await loadStats();
+        if(fbActive) await loadMyFeedback();
+
+        showRefreshHint("Frissítve.");
+      } finally {
+        if(btn) btn.disabled = false;
+      }
+    });
+
+    window.addEventListener("DOMContentLoaded", async ()=>{
+      initTabs();
+      await loadStats();      // default
+      await loadMyFeedback(); // előtölt
+    });
+  </script>
+</body>
+</html>

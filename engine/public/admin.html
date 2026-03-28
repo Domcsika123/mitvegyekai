@@ -1,0 +1,2135 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mitvegyek.ai – Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #f3f4f6;
+      overflow-y: scroll;
+    }
+
+    h1 { margin-bottom: 8px; }
+
+    .mv-container { max-width: 1100px; margin: 0 auto; }
+
+    .mv-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      padding: 18px 20px;
+      margin-bottom: 18px;
+    }
+
+    .mv-card h2 { margin-top: 0; margin-bottom: 6px; }
+
+    .mv-small { font-size: 13px; color: #4b5563; }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+      margin-top: 10px;
+      table-layout: fixed;
+    }
+
+    th, td {
+      padding: 8px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+      vertical-align: middle;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    th { font-weight: 600; color: #374151; }
+
+    .mv-button-link {
+      display: inline-block;
+      margin-top: 4px;
+      margin-right: 8px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #2563eb;
+      color: white;
+      font-size: 12px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .mv-button-link:hover { background: #1d4ed8; }
+
+    .mv-button-link-dark { background: #111827; }
+    .mv-button-link-dark:hover { background: #0b1220; }
+
+    .mv-input-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+      align-items: center;
+    }
+
+    .mv-input-group {
+      display: flex;
+      flex-direction: column;
+      min-width: 140px;
+      flex: 1;
+    }
+
+    .mv-input-group label {
+      font-size: 12px;
+      color: #4b5563;
+      margin-bottom: 4px;
+    }
+
+    .mv-input-group input,
+    .mv-input-group select {
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      padding: 6px 8px;
+      font-size: 13px;
+      background: #fff;
+    }
+
+    .mv-input-group input:focus,
+    .mv-input-group select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px #2563eb33;
+    }
+
+    .mv-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      padding: 6px 14px;
+      font-size: 13px;
+      margin-top: 10px;
+      white-space: nowrap;
+      font-weight: 400; /* ✅ ne legyen félkövér */
+    }
+
+    .mv-btn-primary { background: #2563eb; color: white; }
+    .mv-btn-primary:hover { background: #1d4ed8; }
+
+    .mv-btn-secondary { background: #e5e7eb; color: #111827; }
+    .mv-btn-secondary:hover { background: #d1d5db; }
+
+    .mv-btn-danger { background: #dc2626; color: white; }
+    .mv-btn-danger:hover { background: #b91c1c; }
+
+    .mv-status { margin: 0; font-size: 13px; display: inline-flex; align-items: center; white-space: nowrap; }
+    .mv-status-ok { color: #166534; }
+    .mv-status-error { color: #b91c1c; }
+
+    .mv-file-label { font-size: 13px; color: #4b5563; margin-top: 6px; }
+
+    .mv-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .mv-inline-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      padding: 2px 8px;
+      font-size: 11px;
+      margin-left: 6px;
+      background: #e5e7eb;
+      color: #111827;
+      white-space: nowrap;
+      font-weight: 400; /* ✅ */
+    }
+
+    .mv-inline-btn:hover { background: #d1d5db; }
+
+    .mv-topbar {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .mv-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+    .mv-pill {
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:2px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      background:#f1f5f9;
+      color:#0f172a;
+      margin-left:8px;
+    }
+    .mv-pill.blocked { background:#fee2e2; color:#991b1b; }
+    .mv-pill.active { background:#dcfce7; color:#166534; }
+
+    /* ✅ partner név cella rendezett legyen */
+    .mv-partner-namecell{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      width:100%;
+    }
+    .mv-partner-namecell .mv-partner-name{
+      min-width: 0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .mv-partner-namecell .mv-partner-pill{
+      flex:0 0 auto;
+      width: 92px;
+      justify-content:center;
+      margin-left:0 !important;
+    }
+
+    /* ===== Tabs ===== */
+    .mv-tabs{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin: 10px 0 16px 0;
+    }
+    .mv-tab{
+      border:1px solid #e5e7eb;
+      background:#fff;
+      color:#111827;
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:13px;
+      cursor:pointer;
+      user-select:none;
+      font-weight: 400; /* ✅ */
+    }
+    .mv-tab:hover{ background:#f9fafb; }
+    .mv-tab.active{
+      background:#2563eb;
+      border-color:#2563eb;
+      color:#fff;
+      font-weight:400; /* ✅ ne félkövér */
+    }
+    .mv-tab-panel{ display:none; }
+    .mv-tab-panel.active{ display:block; }
+
+    /* ===== Pager ===== */
+    .mv-pager{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top: 10px;
+    }
+    .mv-pager-left{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .mv-pager-right{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .mv-pager-info{ font-size:13px; color:#4b5563; }
+
+    /* ===== Feedback (Bejelentések) ===== */
+    .mv-inline{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    .mv-statusline{ margin-top:8px; font-size:13px; }
+    .mv-statusline.ok{ color:#166534; }
+    .mv-statusline.err{ color:#b91c1c; }
+
+    .mv-pill2{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      line-height:1;
+      padding:4px 12px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      min-height:24px;
+      background:#f1f5f9;
+      color:#0f172a;
+      white-space:nowrap;
+      box-sizing:border-box;
+    }
+    .pill-open{background:#fee2e2;color:#991b1b;}
+    .pill-in{background:#ffedd5;color:#9a3412;}
+    .pill-res{background:#dcfce7;color:#166534;}
+
+    .mv-cell-center{display:flex;justify-content:center;align-items:center;}
+    .mv-status-cell{display:flex;justify-content:flex-start;align-items:center;width:100%;}
+
+    .mv-inline-msg{
+      font-size:13px;
+      font-weight:400;
+      padding-left:2px;
+    }
+    .mv-inline-msg.ok{ color:#166534; }
+    .mv-inline-msg.err{ color:#b91c1c; }
+
+    .mv-textarea{
+      width:100%;
+      max-width:100%;
+      border-radius:10px;
+      border:1px solid #d1d5db;
+      padding:10px 10px;
+      font-size:14px;
+      min-height:90px;
+      resize:vertical;
+      overflow-x:hidden;
+      box-sizing:border-box;
+    }
+    .mv-textarea:focus{
+      outline:none;
+      border-color:#2563eb;
+      box-shadow:0 0 0 1px #2563eb33;
+    }
+
+    .mv-autocomplete-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      background: white;
+      border: 1px solid #d1d5db;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .mv-autocomplete-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .mv-autocomplete-item:hover {
+      background: #f9fafb;
+    }
+
+    .mv-autocomplete-item:last-child {
+      border-bottom: none;
+    }
+
+    /* ====== MOBIL FIX v3 ====== */
+    @media (max-width: 640px) {
+      *, *::before, *::after { box-sizing: border-box !important; }
+      body { padding: 14px !important; overflow-x: hidden !important; }
+
+      .mv-container{
+        width: 100% !important;
+        max-width: 520px !important;
+        margin: 0 auto !important;
+      }
+
+      .mv-card{
+        width: 100% !important;
+        margin: 0 auto 18px auto !important;
+        padding: 14px 14px !important;
+      }
+
+      /* ✅ Összes h2 ugyanakkora mobilon */
+      h2 {
+        font-size: 18px !important;
+        margin: 0 0 12px 0 !important;
+      }
+
+      h3 {
+        font-size: 16px !important;
+        margin: 0 0 8px 0 !important;
+      }
+
+      table{
+        width: 100% !important;
+        border-collapse: collapse !important;
+        table-layout: auto !important;
+        margin: 0 !important;
+      }
+      thead{ display:none !important; }
+
+      tbody, tr, td{ display:block !important; width:100% !important; }
+
+      tr{
+        background:#fff;
+        border:1px solid #e5e7eb;
+        border-radius:14px;
+        padding:10px 12px;
+        box-shadow:0 6px 18px rgba(0,0,0,0.05);
+        margin: 0 0 12px 0 !important;
+      }
+
+      td{
+        border:none !important;
+        padding:8px 0 !important;
+        white-space:normal !important;
+        overflow:visible !important;
+        text-overflow:clip !important;
+        word-break:break-word !important;
+      }
+
+      td::before{
+        display:block;
+        font-weight:700;
+        color:#374151;
+        font-size:12px;
+        margin-bottom:4px;
+      }
+
+      #catalog-table tbody tr td:nth-child(1)::before { content: "site_key"; }
+      #catalog-table tbody tr td:nth-child(2)::before { content: "Termékek száma"; }
+      #catalog-table tbody tr td:nth-child(3)::before { content: "Teszt és műveletek"; }
+
+      #partner-table tbody tr td:nth-child(1)::before { content: "Név"; }
+      #partner-table tbody tr td:nth-child(2)::before { content: "Műveletek"; }
+
+      #stats-table tbody tr td:nth-child(1)::before { content: "site_key"; }
+      #stats-table tbody tr td:nth-child(2)::before { content: "Műveletek"; }
+
+      /* ✅ Keresés és táblázat között pici hely */
+      .mv-input-row + table {
+        margin-top: 16px !important;
+      }
+
+      /* ✅ Bejelentések mobil label-ek */
+      #feedback-table tbody tr td:nth-child(1)::before { content: "Dátum"; }
+      #feedback-table tbody tr td:nth-child(2)::before { content: "site_key"; }
+      #feedback-table tbody tr td:nth-child(3)::before { content: "Típus"; }
+      #feedback-table tbody tr td:nth-child(4)::before { content: "Tárgy"; }
+      #feedback-table tbody tr td:nth-child(5)::before { content: "Státusz"; }
+      #feedback-table tbody tr td:nth-child(6)::before { content: "Művelet"; }
+
+      .mv-actions{
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+        align-items:stretch;
+      }
+      .mv-actions .mv-btn,
+      .mv-actions .mv-inline-btn,
+      .mv-actions .mv-button-link{
+        width:100%;
+        margin-left:0 !important;
+        margin-right:0 !important;
+        text-align:center;
+        justify-content:center;
+      }
+
+      .mv-pill{ margin-left:0 !important; margin-top:6px; }
+    }
+
+    /* ✅ Feedback detail módban rejtsük a felső címsort + frissítést */
+    #feedbackCard.mv-feedback-detail #fbTopHeader {
+      display: none !important;
+    }
+
+    /* ✅ Mobilon módosítások */
+    @media (max-width: 640px) {
+      #fbTopHeader {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        justify-content: flex-start !important;
+      }
+
+      #fbTopHeader > div:first-child {
+        width: 100%;
+        margin-bottom: 12px;
+      }
+
+      #fbTopHeader .mv-inline {
+        width: 100%;
+        justify-content: flex-start !important;
+        align-items: center;
+        gap: 8px;
+      }
+
+      #fbTopHeader #fbRefresh {
+        order: 1;
+      }
+
+      #fbTopHeader #fbRefreshMsg {
+        order: 2;
+        margin-left: 0;
+      }
+
+      /* ✅ Műveletek header elrejtése mobilon */
+      #feedback-table thead th:last-child {
+        display: none !important;
+      }
+
+      #feedback-table tbody tr td:last-child {
+        display: none !important;
+      }
+
+      /* ✅ Statisztika tab: Műveletek header és gomb elrejtése mobilon */
+      #stats-table thead th:last-child {
+        display: none !important;
+      }
+
+      #stats-table tbody tr td:last-child {
+        display: none !important;
+      }
+
+      /* ✅ Statisztika tab: Sorok kattinthatók mobilon */
+      #stats-table tbody tr {
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+
+      #stats-table tbody tr:hover {
+        background-color: #f0f0f0;
+      }
+
+      /* ✅ STATISZTIKA TAB - MOBILOS KÁRTYALAYOUT */
+      #tab-stats .mv-card {
+        padding: 12px !important;
+      }
+
+      #tab-stats h2 {
+        font-size: 16px !important;
+        margin: 0 0 12px 0 !important;
+      }
+
+      /* ✅ Keresés + sor/oldal - egy sorba */
+      #tab-stats .mv-input-row {
+        display: flex !important;
+        gap: 8px !important;
+        flex-wrap: wrap !important;
+        margin-top: 10px !important;
+      }
+
+      #tab-stats .mv-input-group {
+        max-width: 100% !important;
+        flex: 1;
+        min-width: 120px;
+      }
+
+      #tab-stats .mv-input-group label {
+        font-size: 11px !important;
+        margin-bottom: 3px !important;
+      }
+
+      #tab-stats input,
+      #tab-stats select {
+        padding: 6px 8px !important;
+        font-size: 12px !important;
+        border-radius: 8px !important;
+      }
+
+      /* ✅ Táblázat GRID-re alakítva mobilon */
+      #stats-table {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+        width: 100% !important;
+        margin-top: 12px !important;
+      }
+
+      #stats-table thead {
+        display: none !important;
+      }
+
+      #stats-table tbody {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+      }
+
+      #stats-table tbody tr {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%) !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 14px !important;
+        padding: 18px !important;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08) !important;
+        margin: 0 !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+      }
+
+      #stats-table tbody tr:hover {
+        background: linear-gradient(135deg, #ffffff 0%, #f0f1f3 100%) !important;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
+        transform: translateY(-3px) !important;
+        border-color: #d1d5db !important;
+      }
+
+      /* ✅ Kártya tartalom */
+      #stats-table tbody tr td {
+        display: block !important;
+        padding: 0 !important;
+        border: none !important;
+        font-size: 13px !important;
+      }
+
+      /* ✅ Kártya fejlécsor */
+      .stats-card-header {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: baseline !important;
+        margin-bottom: 12px !important;
+        gap: 10px !important;
+      }
+
+      .stats-card-key {
+        font-weight: 700 !important;
+        color: #1f2937 !important;
+        font-size: 16px !important;
+        letter-spacing: 0.3px !important;
+        flex: 1;
+      }
+
+      .stats-card-badge {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+        color: white !important;
+        font-weight: 700 !important;
+        font-size: 18px !important;
+        padding: 6px 12px !important;
+        border-radius: 8px !important;
+        min-width: 50px !important;
+        text-align: center !important;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3) !important;
+      }
+
+      /* ✅ Kártya metaadatok */
+      .stats-card-meta {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+        padding-top: 8px !important;
+        border-top: 1px solid #e5e7eb !important;
+      }
+
+      .stats-card-label {
+        font-size: 11px !important;
+        color: #9ca3af !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+        font-weight: 600 !important;
+      }
+
+      .stats-card-info {
+        font-size: 12px !important;
+        color: #6b7280 !important;
+      }
+
+      #stats-table tbody tr td:nth-child(2) {
+        display: none !important;
+      }
+
+      /* ✅ Pager mobilon */
+      #tab-stats .mv-pager {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+        margin-top: 12px !important;
+        align-items: stretch !important;
+      }
+
+      #tab-stats .mv-pager-left {
+        display: flex !important;
+        gap: 8px !important;
+        flex-wrap: wrap !important;
+      }
+
+      #tab-stats .mv-pager-left button {
+        flex: 1 !important;
+        min-width: 80px !important;
+        padding: 6px 10px !important;
+        font-size: 12px !important;
+      }
+
+      #tab-stats .mv-pager-right {
+        text-align: center !important;
+        font-size: 11px !important;
+        color: #6b7280 !important;
+      }
+    }
+    
+
+    /* ✅ Desktop: Statisztika táblázat normális */
+    #stats-table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    #stats-table th, #stats-table td {
+      padding: 12px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+    }
+
+    #stats-table th {
+      font-weight: 600;
+      color: #374151;
+    }
+
+    /* ✅ Feedback table utolsó cella: override overflow */
+    #feedback-table tbody tr td:last-child {
+      overflow: visible !important;
+    }
+
+    /* ✅✅ FIX: Megnyitás gomb MINDENHOL pill legyen (még ha valami globál felülírná is) */
+    #feedback-table .fb-open-btn,
+    #feedbackCard .fb-open-btn,
+    .mv-cell-center .fb-open-btn{
+      border-radius: 999px !important;
+      -webkit-appearance: none !important;
+      appearance: none !important;
+    }
+
+    /* FINAL: Megnyitás gomb mindig pill + elég széles */
+    #feedback-table button.fb-open-btn,
+    #feedbackCard button.fb-open-btn,
+    #tab-feedback button.fb-open-btn{
+      border-radius: 999px !important;
+      min-width: 85px !important;
+      padding: 8px 14px !important;
+      white-space: nowrap !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <script>
+    (function () {
+      const token = localStorage.getItem("mv_admin_token");
+      if (!token) {
+        window.location.href = "/admin-login.html";
+        return;
+      }
+      window.MV_ADMIN_TOKEN = token;
+    })();
+
+    async function adminFetch(url, options) {
+      const token = window.MV_ADMIN_TOKEN;
+      const opts = options || {};
+      const headers = Object.assign({}, opts.headers || {}, {
+        "x-admin-token": token
+      });
+      opts.headers = headers;
+
+      const res = await fetch(url, opts);
+
+      if (res.status === 401) {
+        localStorage.removeItem("mv_admin_token");
+        window.location.href = "/admin-login.html";
+        return res;
+      }
+      return res;
+    }
+
+    async function adminLogout() {
+      try { await adminFetch("/api/admin/logout", { method: "POST" }); } catch (_) {}
+      localStorage.removeItem("mv_admin_token");
+      window.location.href = "/admin-login.html";
+    }
+
+    // Keep-alive: minden 8 percben pingeli a szervert, hogy ne aludjon el (Render free tier)
+    setInterval(async () => {
+      try { await fetch("/health"); } catch (_) {}
+    }, 8 * 60 * 1000);
+  </script>
+</head>
+
+<body>
+  <div class="mv-container">
+    <div class="mv-topbar">
+      <div>
+        <h1>Mitvegyek.ai – Admin</h1>
+        <p class="mv-small">Katalógusok, partnerek, statisztikák.</p>
+      </div>
+      <button class="mv-btn mv-btn-secondary" onclick="adminLogout()">Kijelentkezés</button>
+    </div>
+
+    <!-- TABS -->
+    <div class="mv-tabs" id="tabs">
+      <button class="mv-tab" data-tab="tab-catalogs">Katalógusok</button>
+      <button class="mv-tab" data-tab="tab-csv">CSV import</button>
+      <button class="mv-tab" data-tab="tab-partners">Partnerek</button>
+      <button class="mv-tab" data-tab="tab-stats">Statisztika</button>
+      <button class="mv-tab" data-tab="tab-feedback">Bejelentések</button>
+    </div>
+
+    <!-- ================= TAB: KATALÓGUSOK ================= -->
+    <div class="mv-tab-panel" id="tab-catalogs">
+      <div class="mv-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <h2 style="margin:0;">Webshop-katalógusok</h2>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+            <a href="/widget-editor.html" class="mv-button-link">Widget szerkesztő</a>
+          </div>
+        </div>
+
+        <div class="mv-input-row" style="margin-top:12px;">
+          <div class="mv-input-group" style="max-width: 280px;">
+            <label for="catalog-query">Keresés (site_key)</label>
+            <input id="catalog-query" type="text" />
+          </div>
+
+          <div class="mv-input-group" style="max-width: 180px;">
+            <label for="catalog-perpage">Sor / oldal</label>
+            <select id="catalog-perpage">
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <table id="catalog-table">
+          <thead>
+            <tr>
+              <th style="width: 22%;">site_key</th>
+              <th style="width: 18%;">Termékek száma</th>
+              <th style="width: 60%;">Teszt és műveletek</th>
+            </tr>
+          </thead>
+          <tbody id="catalog-tbody"></tbody>
+        </table>
+
+        <div class="mv-pager">
+          <div class="mv-pager-left">
+            <button class="mv-btn mv-btn-secondary" id="catalog-prev">Előző</button>
+            <button class="mv-btn mv-btn-secondary" id="catalog-next">Következő</button>
+          </div>
+          <div class="mv-pager-right">
+            <span class="mv-pager-info" id="catalog-pager-info"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= TAB: CSV IMPORT ================= -->
+    <div class="mv-tab-panel" id="tab-csv">
+      <div class="mv-card">
+        <h2>Termékek importálása CSV-ből</h2>
+        <p class="mv-small">
+          A <strong>product_id</strong>, <strong>name</strong> és <strong>price</strong> mezők kötelezők.
+        </p>
+
+        <div class="mv-input-row">
+          <div class="mv-input-group" style="max-width: 220px; position: relative;">
+            <label for="csv-site-key">site_key</label>
+            <input id="csv-site-key" type="text" autocomplete="off" />
+            <div id="csv-site-key-dropdown" class="mv-autocomplete-dropdown" style="display: none;"></div>
+          </div>
+        </div>
+
+        <div class="mv-file-label">CSV fájl:</div>
+        <input id="csv-file" type="file" accept=".csv,text/csv" />
+
+        <div class="mv-input-row">
+          <div class="mv-input-group">
+            <label for="col-id">product_id oszlop *</label>
+            <input id="col-id" type="text" placeholder="pl. product_id" />
+          </div>
+          <div class="mv-input-group">
+            <label for="col-name">name oszlop *</label>
+            <input id="col-name" type="text" placeholder="pl. name" />
+          </div>
+          <div class="mv-input-group">
+            <label for="col-price">price oszlop *</label>
+            <input id="col-price" type="text" placeholder="pl. price" />
+          </div>
+        </div>
+
+        <div class="mv-input-row">
+          <div class="mv-input-group">
+            <label for="col-category">category oszlop</label>
+            <input id="col-category" type="text" placeholder="pl. category" />
+          </div>
+          <div class="mv-input-group">
+            <label for="col-description">description oszlop</label>
+            <input id="col-description" type="text" placeholder="pl. description" />
+          </div>
+        </div>
+
+        <div class="mv-input-row">
+          <div class="mv-input-group">
+            <label for="col-url">product_url oszlop</label>
+            <input id="col-url" type="text" placeholder="pl. product_url" />
+          </div>
+          <div class="mv-input-group">
+            <label for="col-image">image_url oszlop</label>
+            <input id="col-image" type="text" placeholder="pl. image_url" />
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
+          <button id="csv-import-btn" class="mv-btn mv-btn-primary" style="margin-top: 0; margin-right: 0;">CSV importálása</button>
+          <div id="csv-status" class="mv-status"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ================= TAB: PARTNEREK ================= -->
+    <div class="mv-tab-panel" id="tab-partners">
+      <div class="mv-card">
+        <h2>Partnerek kezelése</h2>
+
+        <div class="mv-input-row">
+          <div class="mv-input-group" style="max-width: 260px;">
+            <label for="partner-name">Új partner neve</label>
+            <input id="partner-name" type="text" />
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
+          <button id="partner-create-btn" class="mv-btn mv-btn-primary" style="margin-top: 0; margin-right: 0;">Új partner létrehozása</button>
+          <div id="partner-status" class="mv-status"></div>
+        </div>
+
+        <h3 style="margin-top: 18px;">Partnerek listája</h3>
+
+        <div class="mv-input-row" style="margin-top:10px;">
+          <div class="mv-input-group" style="max-width: 280px;">
+            <label for="partner-query">Keresés (név vagy site_key)</label>
+            <input id="partner-query" type="text" />
+          </div>
+
+          <div class="mv-input-group" style="max-width: 180px;">
+            <label for="partner-perpage">Sor / oldal</label>
+            <select id="partner-perpage">
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <table id="partner-table">
+          <thead>
+            <tr>
+              <th style="width: 40%;">Név</th>
+              <th style="width: 60%;">Műveletek</th>
+            </tr>
+          </thead>
+          <tbody id="partner-tbody"></tbody>
+        </table>
+
+        <div class="mv-pager">
+          <div class="mv-pager-left">
+            <button class="mv-btn mv-btn-secondary" id="partner-prev">Előző</button>
+            <button class="mv-btn mv-btn-secondary" id="partner-next">Következő</button>
+          </div>
+          <div class="mv-pager-right">
+            <span class="mv-pager-info" id="partner-pager-info"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= TAB: STATISZTIKA ================= -->
+    <div class="mv-tab-panel" id="tab-stats">
+      <div class="mv-card">
+        <h2>Ajánláskérések statisztikája</h2>
+
+        <div class="mv-input-row" style="margin-top:12px;">
+          <div class="mv-input-group" style="max-width: 280px;">
+            <label for="stats-query">Keresés (site_key)</label>
+            <input id="stats-query" type="text" />
+          </div>
+
+          <div class="mv-input-group" style="max-width: 180px;">
+            <label for="stats-perpage">Sor / oldal</label>
+            <select id="stats-perpage">
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <table id="stats-table">
+          <thead>
+            <tr>
+              <th>site_key</th>
+              <th>Műveletek</th>
+            </tr>
+          </thead>
+          <tbody id="stats-tbody"></tbody>
+        </table>
+
+        <div class="mv-pager">
+          <div class="mv-pager-left">
+            <button class="mv-btn mv-btn-secondary" id="stats-prev">Előző</button>
+            <button class="mv-btn mv-btn-secondary" id="stats-next">Következő</button>
+          </div>
+          <div class="mv-pager-right">
+            <span class="mv-pager-info" id="stats-pager-info"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= TAB: BEJELENTÉSEK (IFRAME NÉLKÜL) ================= -->
+    <div class="mv-tab-panel" id="tab-feedback">
+      <div class="mv-card" id="feedbackCard">
+        <div id="fbTopHeader" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>
+            <h2 style="margin:0;">Bejelentések</h2>
+            <div class="mv-small">Partner visszajelzések / hibák kezelése</div>
+          </div>
+          <div class="mv-inline">
+            <span id="fbRefreshMsg" class="mv-inline-msg"></span>
+            <button class="mv-btn mv-btn-secondary" id="fbRefresh">Frissítés</button>
+          </div>
+        </div>
+
+        <!-- LIST -->
+        <div id="fbListCard" style="margin-top:12px;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; align-items:flex-end;">
+            <div style="flex:0 1 200px;">
+              <label class="mv-small" style="display:block; margin-bottom:4px;">Keresés (site_key)</label>
+              <input id="fbFilterSite" type="text" style="border-radius:10px; border:1px solid #d1d5db; padding:8px 10px; font-size:13px; width:100%; box-sizing:border-box;" />
+            </div>
+
+            <div style="flex:0 0 auto;">
+              <label class="mv-small" style="display:block; margin-bottom:4px;">Státusz</label>
+              <select id="fbFilterStatus" style="border-radius:10px; border:1px solid #d1d5db; padding:8px 10px; font-size:13px;">
+                <option value="">összes</option>
+                <option value="open">open</option>
+                <option value="in_progress">in_progress</option>
+                <option value="resolved">resolved</option>
+              </select>
+            </div>
+
+            <div style="flex:0 0 auto;">
+              <label class="mv-small" style="display:block; margin-bottom:4px;">Sor / oldal</label>
+              <select id="fbPageSize" style="border-radius:10px; border:1px solid #d1d5db; padding:8px 10px; font-size:13px;">
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mv-statusline" id="fbStatus"></div>
+
+          <table id="feedback-table">
+            <thead>
+              <tr>
+                <th style="width:18%;">Dátum</th>
+                <th style="width:12%;">site_key</th>
+                <th style="width:12%;">Típus</th>
+                <th style="width:30%;">Tárgy</th>
+                <th style="width:14%;">Státusz</th>
+                <th>Művelet</th>
+              </tr>
+            </thead>
+            <tbody id="fbTbody"></tbody>
+          </table>
+
+          <div class="mv-pager">
+            <div class="mv-pager-left">
+              <button class="mv-btn mv-btn-secondary" id="fbPrev">Előző</button>
+              <button class="mv-btn mv-btn-secondary" id="fbNext">Következő</button>
+            </div>
+            <div class="mv-pager-right">
+              <span class="mv-pager-info" id="fbPagerInfo"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- DETAIL -->
+        <div id="fbDetailCard" style="display:none; margin-top:12px;">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div>
+              <h3 style="margin:0 0 6px 0;">Részletek</h3>
+              <div class="mv-small" id="fbDetailMeta"></div>
+            </div>
+            <button class="mv-btn mv-btn-secondary" id="fbBack">← Vissza</button>
+          </div>
+
+          <div style="margin-top:10px;">
+            <div><strong>Tárgy:</strong> <span id="fbDetailSubject"></span></div>
+            <div style="margin-top:6px;"><strong>Üzenet:</strong></div>
+            <div id="fbDetailMessage" style="white-space:pre-wrap;margin-top:6px;"></div>
+            <div style="margin-top:8px;"><strong>Oldal:</strong> <span id="fbDetailUrl"></span></div>
+          </div>
+
+          <div class="mv-inline" style="margin-top:12px;">
+            <select id="fbDetailStatusSelect" style="border-radius:999px;border:1px solid #d1d5db;padding:8px 12px;">
+              <option value="open">open</option>
+              <option value="in_progress">in_progress</option>
+              <option value="resolved">resolved</option>
+            </select>
+
+            <button class="mv-btn mv-btn-primary" id="fbSave">Mentés</button>
+            <span id="fbInlineMsg" class="mv-inline-msg"></span>
+          </div>
+
+          <div style="margin-top:10px;">
+            <div class="mv-small">Admin megjegyzés (belső):</div>
+            <textarea id="fbDetailNote" class="mv-textarea" placeholder="pl. reprodukálva, javítás készül..."></textarea>
+          </div>
+
+          <div class="mv-statusline" id="fbDetailStatusMsg"></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function safeGet(id) { return document.getElementById(id); }
+
+    function setStatus(el, text, ok) {
+      if (!el) return;
+      el.textContent = text || "";
+      el.className = el.className.split(" ").filter(c => c !== "ok" && c !== "err" && c !== "mv-status-ok" && c !== "mv-status-error").join(" ").trim();
+      if (!text) return;
+      if (ok === true) { el.classList.add("mv-status-ok"); el.classList.add("ok"); }
+      if (ok === false) { el.classList.add("mv-status-error"); el.classList.add("err"); }
+    }
+
+    function escapeHtml(s) {
+      return String(s || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+    function paginate(items, page, perPage) {
+      const total = items.length;
+      const pages = Math.max(1, Math.ceil(total / perPage));
+      const p = clamp(page, 1, pages);
+      const start = (p - 1) * perPage;
+      const end = start + perPage;
+      return { page: p, pages, total, start, end, slice: items.slice(start, end) };
+    }
+
+    /* ===== Tabs ===== */
+    const TAB_KEY = "mv_admin_active_tab";
+
+    function setActiveTab(tabId){
+      const tabs = Array.from(document.querySelectorAll(".mv-tab"));
+      const panels = Array.from(document.querySelectorAll(".mv-tab-panel"));
+      tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === tabId));
+      panels.forEach(p => p.classList.toggle("active", p.id === tabId));
+      sessionStorage.setItem(TAB_KEY, tabId);
+    }
+
+    function initTabs(){
+      const tabs = Array.from(document.querySelectorAll(".mv-tab"));
+      tabs.forEach(btn => btn.addEventListener("click", () => setActiveTab(btn.dataset.tab)));
+
+      const saved = sessionStorage.getItem(TAB_KEY);
+      setActiveTab(saved || "tab-catalogs");
+    }
+
+    // ✅ site_key -> partner (api_key + blocked)
+    let partnersBySiteKey = new Map();
+    let validSiteKeys = new Set();
+
+    // nyers listák
+    let CATALOGS_ALL = [];
+    let PARTNERS_ALL = [];
+    let STATS_ALL = [];
+
+    // UI state
+    const state = {
+      catalogs: { query: "", perPage: 25, page: 1 },
+      partners: { query: "", perPage: 25, page: 1 },
+      stats:    { query: "", perPage: 25, page: 1 },
+    };
+
+    function renderCatalogs(){
+      const tbody = safeGet("catalog-tbody");
+      const info = safeGet("catalog-pager-info");
+      if (!tbody) return;
+
+      const q = (state.catalogs.query || "").toLowerCase().trim();
+      const filtered = q
+        ? CATALOGS_ALL.filter(c => String(c.siteKey || "").toLowerCase().includes(q))
+        : CATALOGS_ALL.slice();
+
+      const paged = paginate(filtered, state.catalogs.page, state.catalogs.perPage);
+      state.catalogs.page = paged.page;
+
+      tbody.innerHTML = "";
+
+      if (paged.total === 0) {
+        tbody.innerHTML = "<tr><td colspan='3'>Nincs betöltött katalógus.</td></tr>";
+      } else {
+        const origin = window.location.origin;
+
+        paged.slice.forEach((cat) => {
+          const tr = document.createElement("tr");
+
+          const tdKey = document.createElement("td");
+          tdKey.textContent = cat.siteKey;
+          tr.appendChild(tdKey);
+
+          const tdCount = document.createElement("td");
+          tdCount.textContent = String(cat.productCount);
+          tr.appendChild(tdCount);
+
+          const tdTest = document.createElement("td");
+
+          const partner = partnersBySiteKey.get(cat.siteKey);
+          const apiKey = partner && partner.api_key ? String(partner.api_key) : "";
+
+          const linkDemo = document.createElement("a");
+          const qs = new URLSearchParams();
+          qs.set("site_key", cat.siteKey);
+          if (apiKey) qs.set("api_key", apiKey);
+
+          linkDemo.href = `${origin}/demo.html?${qs.toString()}`;
+          linkDemo.target = "_blank";
+          linkDemo.rel = "noopener noreferrer";
+          linkDemo.className = "mv-button-link";
+          linkDemo.textContent = apiKey ? "Widget teszt" : "Widget teszt (nincs api_key)";
+          tdTest.appendChild(linkDemo);
+
+          const delBtn = document.createElement("button");
+          delBtn.className = "mv-inline-btn";
+          delBtn.textContent = "Katalógus törlése";
+          delBtn.addEventListener("click", async () => {
+            const sure = confirm(`Biztosan törlöd ezt a katalógust?\n\nsite_key: ${cat.siteKey}`);
+            if (!sure) return;
+
+            try {
+              const res = await adminFetch(`/api/admin/catalogs/${encodeURIComponent(cat.siteKey)}`, {
+                method: "DELETE"
+              });
+              if (!res || !res.ok) {
+                const err = await (res ? res.json().catch(() => ({})) : Promise.resolve({}));
+                throw new Error(err.error || "Ismeretlen hiba");
+              }
+
+              await loadCatalogs();
+              await loadStatsOverview();
+            } catch (e) {
+              console.error(e);
+              alert("Hiba a katalógus törlésekor: " + e.message);
+            }
+          });
+          tdTest.appendChild(delBtn);
+
+          tr.appendChild(tdTest);
+          tbody.appendChild(tr);
+        });
+      }
+
+      const start = paged.total === 0 ? 0 : (paged.start + 1);
+      const end = paged.total === 0 ? 0 : Math.min(paged.end, paged.total);
+      if (info) info.textContent = `Találatok: ${paged.total} • ${start}-${end} • ${paged.page}/${paged.pages} oldal`;
+
+      const prev = safeGet("catalog-prev");
+      const next = safeGet("catalog-next");
+      if (prev) prev.disabled = paged.page <= 1;
+      if (next) next.disabled = paged.page >= paged.pages;
+    }
+
+    function renderPartners(){
+      const tbody = safeGet("partner-tbody");
+      const info = safeGet("partner-pager-info");
+      if (!tbody) return;
+
+      const q = (state.partners.query || "").toLowerCase().trim();
+      const filtered = q
+        ? PARTNERS_ALL.filter(p =>
+            String(p.name || "").toLowerCase().includes(q) ||
+            String(p.site_key || "").toLowerCase().includes(q)
+          )
+        : PARTNERS_ALL.slice();
+
+      const paged = paginate(filtered, state.partners.page, state.partners.perPage);
+      state.partners.page = paged.page;
+
+      tbody.innerHTML = "";
+
+      if (paged.total === 0) {
+        tbody.innerHTML = "<tr><td colspan='2'>Még nincs partner létrehozva.</td></tr>";
+      } else {
+        const origin = window.location.origin;
+
+        paged.slice.forEach((p) => {
+          const tr = document.createElement("tr");
+
+          const tdName = document.createElement("td");
+          tdName.innerHTML = `
+            <div class="mv-partner-namecell">
+              <span class="mv-partner-name">${escapeHtml(p.name || "")}</span>
+              <span class="mv-pill mv-partner-pill ${p.blocked ? "blocked" : "active"}">
+                ${p.blocked ? "BLOKKOLVA" : "AKTÍV"}
+              </span>
+            </div>
+          `;
+          tr.appendChild(tdName);
+
+          const tdActions = document.createElement("td");
+          tdActions.className = "mv-actions";
+
+          const moreBtn = document.createElement("button");
+          moreBtn.className = "mv-btn mv-btn-secondary";
+          moreBtn.textContent = "Mutass többet";
+          moreBtn.addEventListener("click", () => {
+            window.location.href = `${origin}/partner.html?site_key=${encodeURIComponent(p.site_key)}`;
+          });
+          tdActions.appendChild(moreBtn);
+
+          const blockBtn = document.createElement("button");
+          blockBtn.className = "mv-btn mv-btn-secondary";
+          blockBtn.textContent = p.blocked ? "Feloldás" : "Blokkolás";
+          blockBtn.addEventListener("click", async () => {
+            const newState = !p.blocked;
+            try {
+              const res = await adminFetch(`/api/admin/partners/${encodeURIComponent(p.site_key)}/block`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ blocked: newState }),
+              });
+
+              if (!res || !res.ok) {
+                const err = await (res ? res.json().catch(() => ({})) : Promise.resolve({}));
+                throw new Error(err.error || "Ismeretlen hiba");
+              }
+
+              await loadPartners();
+              await loadCatalogs();
+            } catch (e) {
+              console.error(e);
+              alert("Hiba a blokkolás/feloldás során: " + e.message);
+            }
+          });
+          tdActions.appendChild(blockBtn);
+
+          const delBtn = document.createElement("button");
+          delBtn.className = "mv-btn mv-btn-danger";
+          delBtn.textContent = "Törlés";
+          delBtn.addEventListener("click", async () => {
+            const sure = confirm(`Biztosan törlöd ezt a partnert?\n\nNév: ${p.name}\nsite_key: ${p.site_key}`);
+            if (!sure) return;
+
+            try {
+              const res = await adminFetch(`/api/admin/partners/${encodeURIComponent(p.site_key)}`, {
+                method: "DELETE",
+              });
+
+              if (!res || !res.ok) {
+                const err = await (res ? res.json().catch(() => ({})) : Promise.resolve({}));
+                throw new Error(err.error || "Ismeretlen hiba");
+              }
+
+              await loadPartners();
+              await loadCatalogs();
+              await loadStatsOverview();
+            } catch (e) {
+              console.error(e);
+              alert("Hiba a partner törlésekor: " + e.message);
+            }
+          });
+          tdActions.appendChild(delBtn);
+
+          tr.appendChild(tdActions);
+          tbody.appendChild(tr);
+        });
+      }
+
+      const start = paged.total === 0 ? 0 : (paged.start + 1);
+      const end = paged.total === 0 ? 0 : Math.min(paged.end, paged.total);
+      if (info) info.textContent = `Találatok: ${paged.total} • ${start}-${end} • ${paged.page}/${paged.pages} oldal`;
+
+      const prev = safeGet("partner-prev");
+      const next = safeGet("partner-next");
+      if (prev) prev.disabled = paged.page <= 1;
+      if (next) next.disabled = paged.page >= paged.pages;
+    }
+
+    function renderStats(){
+      const tbody = safeGet("stats-tbody");
+      const info = safeGet("stats-pager-info");
+      if (!tbody) return;
+
+      const q = (state.stats.query || "").toLowerCase().trim();
+      const filtered = q
+        ? STATS_ALL.filter(s => String(s.siteKey || "").toLowerCase().includes(q))
+        : STATS_ALL.slice();
+
+      const paged = paginate(filtered, state.stats.page, state.stats.perPage);
+      state.stats.page = paged.page;
+
+      tbody.innerHTML = "";
+
+      if (paged.total === 0) {
+        tbody.innerHTML = "<tr><td colspan='2'>Nincs katalógus, ezért statisztika sem érhető el.</td></tr>";
+      } else {
+        const origin = window.location.origin;
+
+        paged.slice.forEach((cat) => {
+          const tr = document.createElement("tr");
+
+          const tdKey = document.createElement("td");
+          tdKey.textContent = cat.siteKey;
+          tr.appendChild(tdKey);
+
+          const tdActions = document.createElement("td");
+          const btn = document.createElement("button");
+          btn.className = "mv-inline-btn";
+          btn.textContent = "Részletek";
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            window.location.href = `${origin}/stats.html?site_key=${encodeURIComponent(cat.siteKey)}`;
+          });
+          tdActions.appendChild(btn);
+          tr.appendChild(tdActions);
+
+          // Kattintható sor
+          tr.addEventListener("click", () => {
+            window.location.href = `${origin}/stats.html?site_key=${encodeURIComponent(cat.siteKey)}`;
+          });
+
+          tbody.appendChild(tr);
+        });
+      }
+
+      const start = paged.total === 0 ? 0 : (paged.start + 1);
+      const end = paged.total === 0 ? 0 : Math.min(paged.end, paged.total);
+      if (info) info.textContent = `Találatok: ${paged.total} • ${start}-${end} • ${paged.page}/${paged.pages} oldal`;
+
+      const prev = safeGet("stats-prev");
+      const next = safeGet("stats-next");
+      if (prev) prev.disabled = paged.page <= 1;
+      if (next) next.disabled = paged.page >= paged.pages;
+    }
+
+    async function loadPartners() {
+      const tbody = safeGet("partner-tbody");
+      if (tbody) tbody.innerHTML = "<tr><td colspan='2'>Betöltés...</td></tr>";
+
+      try {
+        const response = await adminFetch("/api/admin/partners");
+        if (!response || !response.ok) throw new Error("Nem sikerült lekérni a partnereket.");
+
+        const data = await response.json();
+        const partners = data.partners || [];
+
+        PARTNERS_ALL = partners;
+
+        partnersBySiteKey = new Map();
+        partners.forEach(p => partnersBySiteKey.set(p.site_key, p));
+        validSiteKeys = new Set(partners.map(p => p.site_key));
+
+        renderPartners();
+      } catch (err) {
+        console.error(err);
+        if (tbody) tbody.innerHTML = "<tr><td colspan='2'>Hiba történt a partnerek betöltése közben.</td></tr>";
+      }
+    }
+
+    async function loadCatalogs() {
+      const tbody = safeGet("catalog-tbody");
+      if (tbody) tbody.innerHTML = "<tr><td colspan='3'>Betöltés...</td></tr>";
+
+      try {
+        const response = await adminFetch("/api/admin/catalogs");
+        if (!response || !response.ok) throw new Error("Nem sikerült lekérni a katalógusokat.");
+
+        const data = await response.json();
+        const rawCatalogs = data.catalogs || [];
+
+        const catalogs = rawCatalogs.map((c) => {
+          const siteKey = c.siteKey || c.site_key || c.key || "ismeretlen";
+          const productCount =
+            typeof c.productCount === "number" ? c.productCount :
+            typeof c.count === "number" ? c.count : 0;
+          return { siteKey, productCount };
+        });
+
+        CATALOGS_ALL = catalogs;
+        renderCatalogs();
+      } catch (err) {
+        console.error(err);
+        if (tbody) tbody.innerHTML = "<tr><td colspan='3'>Hiba történt a katalógusok betöltése közben.</td></tr>";
+      }
+    }
+
+    async function loadStatsOverview() {
+      const tbody = safeGet("stats-tbody");
+      if (tbody) tbody.innerHTML = "<tr><td colspan='2'>Betöltés...</td></tr>";
+
+      try {
+        const res = await adminFetch("/api/admin/catalogs");
+        if (!res || !res.ok) throw new Error("Nem sikerült lekérni a katalógusokat.");
+
+        const data = await res.json();
+        const rawCatalogs = data.catalogs || [];
+        const catalogs = rawCatalogs.map((c) => ({
+          siteKey: c.siteKey || c.site_key || c.key || "ismeretlen"
+        }));
+
+        STATS_ALL = catalogs;
+        renderStats();
+      } catch (err) {
+        console.error(err);
+        if (tbody) tbody.innerHTML = "<tr><td colspan='2'>Hiba történt a statisztika betöltése közben.</td></tr>";
+      }
+    }
+
+    function parsePrice(raw) {
+      if (!raw) return 0;
+      const cleaned = raw.toString().replace(/\s+/g, "").replace(/[^0-9.,]/g, "");
+      if (!cleaned) return 0;
+      const normalized = cleaned.replace(",", ".");
+      const num = Number(normalized);
+      if (Number.isNaN(num)) return 0;
+      return Math.round(num);
+    }
+
+    function setupCsvImport() {
+      const siteKeyInput = safeGet("csv-site-key");
+      const dropdown = safeGet("csv-site-key-dropdown");
+      const btn = safeGet("csv-import-btn");
+      const statusEl = safeGet("csv-status");
+      if (!btn) return;
+
+      // ✅ Autocomplete handler
+      if (siteKeyInput && dropdown) {
+        siteKeyInput.addEventListener("input", () => {
+          const query = (siteKeyInput.value || "").toLowerCase().trim();
+          dropdown.innerHTML = "";
+
+          if (!query) {
+            dropdown.style.display = "none";
+            return;
+          }
+
+          const filtered = Array.from(validSiteKeys).filter(sk => 
+            sk.toLowerCase().includes(query)
+          );
+
+          if (filtered.length === 0) {
+            dropdown.style.display = "none";
+            return;
+          }
+
+          filtered.forEach(sk => {
+            const item = document.createElement("div");
+            item.className = "mv-autocomplete-item";
+            item.textContent = sk;
+            item.addEventListener("click", () => {
+              siteKeyInput.value = sk;
+              dropdown.style.display = "none";
+            });
+            dropdown.appendChild(item);
+          });
+
+          dropdown.style.display = "block";
+        });
+
+        // ✅ Dropdown elrejtése kattintáskor máshol
+        document.addEventListener("click", (e) => {
+          if (e.target !== siteKeyInput && !dropdown.contains(e.target)) {
+            dropdown.style.display = "none";
+          }
+        });
+      }
+
+      btn.addEventListener("click", () => {
+        const siteKeyInput = safeGet("csv-site-key");
+        const fileInput = safeGet("csv-file");
+
+        const colId = (safeGet("col-id")?.value || "").trim();
+        const colName = (safeGet("col-name")?.value || "").trim();
+        const colPrice = (safeGet("col-price")?.value || "").trim();
+        const colCategory = (safeGet("col-category")?.value || "").trim();
+        const colDesc = (safeGet("col-description")?.value || "").trim();
+        const colUrl = (safeGet("col-url")?.value || "").trim();
+        const colImage = (safeGet("col-image")?.value || "").trim();
+
+        const siteKey = (siteKeyInput?.value || "").trim();
+        setStatus(statusEl, "", null);
+
+        if (!siteKey) { setStatus(statusEl, "Kérlek add meg a site_key értékét.", false); return; }
+        if (!validSiteKeys.has(siteKey)) {
+          setStatus(statusEl, `Nincs ilyen partner / site_key: ${siteKey}. Először hozd létre partnert ezen a néven.`, false);
+          return;
+        }
+
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+          setStatus(statusEl, "Kérlek válassz egy CSV fájlt.", false);
+          return;
+        }
+
+        if (!colId || !colName || !colPrice) {
+          setStatus(statusEl, "A product_id, name és price oszlopnevek megadása kötelező.", false);
+          return;
+        }
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+
+        reader.onload = async (e) => {
+          try {
+            const csvText = e.target.result;
+            const parsed = Papa.parse(csvText, {
+              header: true,
+              skipEmptyLines: true,
+              trimHeaders: true,
+            });
+
+            const rows = parsed.data || [];
+            const items = [];
+            let skipped = 0;
+
+            for (const row of rows) {
+              const product_id = (row[colId] || "").toString().trim();
+              const name = (row[colName] || "").toString().trim();
+              const priceRaw = row[colPrice];
+
+              if (!product_id || !name) { skipped++; continue; }
+
+              const price = parsePrice(priceRaw);
+              const category = colCategory ? (row[colCategory] || "").toString().trim() : "";
+              const description = colDesc ? (row[colDesc] || "").toString().trim() : "";
+              const product_url = colUrl ? (row[colUrl] || "").toString().trim() : "";
+              const image_url = colImage ? (row[colImage] || "").toString().trim() : "";
+
+              items.push({
+                product_id, name, price, category, description,
+                product_url: product_url || undefined,
+                image_url: image_url || undefined,
+              });
+            }
+
+            if (items.length === 0) {
+              setStatus(statusEl, "Nem találtam importálható terméket.", false);
+              return;
+            }
+
+            setStatus(statusEl, `Import folyamatban... (${items.length} termék)`, true);
+
+            var importData = await adminFetch("/api/admin/import-products", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ site_key: siteKey, items }),
+            }).then(function(r) { return r.json(); });
+
+            if (!importData || !importData.ok) {
+              throw new Error(importData?.error || "Import sikertelen");
+            }
+
+            setStatus(statusEl, "Sikeres import: " + importData.count + " termék.", true);
+
+            if (siteKeyInput) siteKeyInput.value = "";
+            if (fileInput) fileInput.value = "";
+            ["col-id","col-name","col-price","col-category","col-description","col-url","col-image"].forEach(function(id) {
+              var inp = safeGet(id);
+              if (inp) inp.value = "";
+            });
+
+            setTimeout(function() { setStatus(statusEl, "", null); }, 4000);
+
+            await loadCatalogs();
+            await loadStatsOverview();
+          } catch (err) {
+            console.error(err);
+            setStatus(statusEl, "Hiba az import során: " + err.message, false);
+          }
+        };
+
+        reader.readAsText(file, "utf-8");
+      });
+    }
+
+    function setupPartnerForm() {
+      const btn = safeGet("partner-create-btn");
+      const statusEl = safeGet("partner-status");
+      const input = safeGet("partner-name");
+      if (!btn) return;
+
+      btn.addEventListener("click", async () => {
+        const name = (input?.value || "").trim();
+        setStatus(statusEl, "", null);
+
+        if (!name) {
+          setStatus(statusEl, "Írj be egy partner nevet!", false);
+          return;
+        }
+
+        try {
+          setStatus(statusEl, "Partner létrehozása folyamatban...", true);
+
+          const res = await adminFetch("/api/admin/partners", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name }),
+          });
+
+          if (!res || !res.ok) {
+            const err = await (res ? res.json().catch(() => ({})) : Promise.resolve({}));
+            throw new Error(err.error || "Ismeretlen hiba");
+          }
+
+          await res.json();
+          setStatus(statusEl, "Partner sikeresen létrehozva.", true);
+          if (input) input.value = "";
+
+          setTimeout(() => setStatus(statusEl, "", null), 2500);
+
+          await loadPartners();
+          await loadCatalogs();
+          await loadStatsOverview();
+        } catch (err) {
+          console.error(err);
+          setStatus(statusEl, "Hiba a partner létrehozásakor: " + err.message, false);
+        }
+      });
+    }
+
+    function hookListControls(){
+      const cq = safeGet("catalog-query");
+      const cpp = safeGet("catalog-perpage");
+      const cprev = safeGet("catalog-prev");
+      const cnext = safeGet("catalog-next");
+
+      if (cq) cq.addEventListener("input", () => { state.catalogs.query = cq.value || ""; state.catalogs.page = 1; renderCatalogs(); });
+      if (cpp) cpp.addEventListener("change", () => { state.catalogs.perPage = Number(cpp.value) || 25; state.catalogs.page = 1; renderCatalogs(); });
+      if (cprev) cprev.addEventListener("click", () => { state.catalogs.page--; renderCatalogs(); });
+      if (cnext) cnext.addEventListener("click", () => { state.catalogs.page++; renderCatalogs(); });
+
+      const pq = safeGet("partner-query");
+      const ppp = safeGet("partner-perpage");
+      const pprev = safeGet("partner-prev");
+      const pnext = safeGet("partner-next");
+
+      if (pq) pq.addEventListener("input", () => { state.partners.query = pq.value || ""; state.partners.page = 1; renderPartners(); });
+      if (ppp) ppp.addEventListener("change", () => { state.partners.perPage = Number(ppp.value) || 25; state.partners.page = 1; renderPartners(); });
+      if (pprev) pprev.addEventListener("click", () => { state.partners.page--; renderPartners(); });
+      if (pnext) pnext.addEventListener("click", () => { state.partners.page++; renderPartners(); });
+
+      const sq = safeGet("stats-query");
+      const spp = safeGet("stats-perpage");
+      const sprev = safeGet("stats-prev");
+      const snext = safeGet("stats-next");
+
+      if (sq) sq.addEventListener("input", () => { state.stats.query = sq.value || ""; state.stats.page = 1; renderStats(); });
+      if (spp) spp.addEventListener("change", () => { state.stats.perPage = Number(spp.value) || 25; state.stats.page = 1; renderStats(); });
+      if (sprev) sprev.addEventListener("click", () => { state.stats.page--; renderStats(); });
+      if (snext) snext.addEventListener("click", () => { state.stats.page++; renderStats(); });
+    }
+
+    /* ===================== FEEDBACK (Bejelentések) ===================== */
+    let FB_ALL = [];
+    let FB_CURRENT = null;
+    let __fbInlineTimer = null;
+    let __fbInFlight = false;
+
+    const fbState = {
+      status: "",
+      site: "",
+      perPage: 25,
+      page: 1
+    };
+
+    function fbFmt(v){
+      if(!v) return "-";
+      try{
+        const d=new Date(v);
+        if(isNaN(d.getTime())) return "-";
+        return d.toLocaleString("hu-HU");
+      }catch{ return "-"; }
+    }
+
+    function fbPill(status){
+      if(status==="open") return `<span class="mv-pill2 pill-open">open</span>`;
+      if(status==="in_progress") return `<span class="mv-pill2 pill-in">in_progress</span>`;
+      if(status==="resolved") return `<span class="mv-pill2 pill-res">resolved</span>`;
+      return `<span class="mv-pill2">${escapeHtml(status)}</span>`;
+    }
+
+    function fbSetInline(text, ok, keepMs){
+      const el = safeGet("fbInlineMsg");
+      if (!el) return;
+
+      if (__fbInlineTimer) { clearTimeout(__fbInlineTimer); __fbInlineTimer = null; }
+
+      el.textContent = text || "";
+      el.className = "mv-inline-msg " + (ok===true ? "ok" : ok===false ? "err" : "");
+
+      const ms = Number(keepMs || 0);
+      if (text && ms > 0){
+        __fbInlineTimer = setTimeout(() => {
+          el.textContent = "";
+          el.className = "mv-inline-msg";
+          __fbInlineTimer = null;
+        }, ms);
+      }
+    }
+
+    function fbSetDetailMsg(text, ok){
+      const el = safeGet("fbDetailStatusMsg");
+      if (!el) return;
+      el.textContent = text || "";
+      el.className = "mv-statusline " + (ok===true ? "ok" : ok===false ? "err" : "");
+    }
+
+    function fbShowList(){
+      safeGet("feedbackCard")?.classList.remove("mv-feedback-detail");
+      FB_CURRENT = null;
+      safeGet("fbDetailCard").style.display = "none";
+      safeGet("fbListCard").style.display = "block";
+      fbSetInline("", null, 0);
+      fbSetDetailMsg("", null);
+      fbRenderList();
+    }
+
+    function fbShowDetail(item){
+      safeGet("feedbackCard")?.classList.add("mv-feedback-detail");
+      FB_CURRENT = item;
+      safeGet("fbListCard").style.display = "none";
+      safeGet("fbDetailCard").style.display = "block";
+
+      safeGet("fbDetailMeta").innerHTML =
+        `#<span class="mv-code">${escapeHtml(item.id)}</span> • site_key: <span class="mv-code">${escapeHtml(item.site_key)}</span> • ${escapeHtml(fbFmt(item.created_at))}`;
+
+      safeGet("fbDetailSubject").textContent = item.subject || "";
+      safeGet("fbDetailMessage").textContent = item.message || "";
+      safeGet("fbDetailUrl").textContent = item.page_url || "-";
+      safeGet("fbDetailStatusSelect").value = item.status || "open";
+      safeGet("fbDetailNote").value = item.admin_note || "";
+
+      fbSetInline("", null, 0);
+      fbSetDetailMsg("", null);
+    }
+
+    function fbFiltered(){
+      const sk = (fbState.site || "").trim().toLowerCase();
+      let arr = FB_ALL.slice();
+      if (sk) arr = arr.filter(it => String(it.site_key || "").toLowerCase().includes(sk));
+      return arr;
+    }
+
+    function fbRenderList(){
+      const tbody = safeGet("fbTbody");
+      const info = safeGet("fbPagerInfo");
+      if (!tbody) return;
+
+      const filtered = fbFiltered();
+      const paged = paginate(filtered, fbState.page, fbState.perPage);
+      fbState.page = paged.page;
+
+      tbody.innerHTML = "";
+
+      if (paged.total === 0){
+        tbody.innerHTML = "<tr><td colspan='6'>Nincs találat.</td></tr>";
+      } else {
+        paged.slice.forEach(it => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${escapeHtml(fbFmt(it.created_at))}</td>
+            <td><span class="mv-code">${escapeHtml(it.site_key)}</span></td>
+            <td>${escapeHtml(it.type)}</td>
+            <td>${escapeHtml(it.subject)}</td>
+            <td><div class="mv-status-cell">${fbPill(it.status)}</div></td>
+            <td>
+              <div class="mv-cell-center">
+                <!-- ✅✅ FIX: inline border-radius is, hogy SEMMI se tudja felülírni -->
+                <button
+                  class="mv-btn mv-btn-secondary fb-open-btn"
+                  style="margin-top:0;border-radius:999px;-webkit-appearance:none;appearance:none;box-sizing:border-box;"
+                  type="button"
+                >Megnyitás</button>
+              </div>
+            </td>
+          `;
+          tr.addEventListener("click", () => fbShowDetail(it));
+          tr.querySelector("button").addEventListener("click", (e) => {
+            e.stopPropagation();
+            fbShowDetail(it);
+          });
+          tbody.appendChild(tr);
+        });
+      }
+
+      const start = paged.total === 0 ? 0 : (paged.start + 1);
+      const end = paged.total === 0 ? 0 : Math.min(paged.end, paged.total);
+      if (info) info.textContent = `Találatok: ${paged.total} • ${start}-${end} • ${paged.page}/${paged.pages} oldal`;
+
+      const prev = safeGet("fbPrev");
+      const next = safeGet("fbNext");
+      if (prev) prev.disabled = paged.page <= 1;
+      if (next) next.disabled = paged.page >= paged.pages;
+    }
+
+    async function fbLoadList(opts){
+      const silent = !!(opts && opts.silent);
+      if (__fbInFlight) return;
+      __fbInFlight = true;
+
+      const statusEl = safeGet("fbStatus");
+      try{
+        if (!silent) setStatus(statusEl, "Betöltés...", true);
+
+        const st = (fbState.status || "").trim();
+        const qs = new URLSearchParams();
+        if (st) qs.set("status", st);
+
+        const res = await adminFetch("/api/admin/feedback" + (qs.toString() ? "?" + qs.toString() : ""));
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok){
+          if (!silent) setStatus(statusEl, data.error || "Hiba a bejelentések lekérésénél.", false);
+          return;
+        }
+
+        FB_ALL = data.items || [];
+        if (!silent) setStatus(statusEl, "", null);
+
+        if (!FB_CURRENT){
+          fbRenderList();
+        }
+      } finally {
+        __fbInFlight = false;
+      }
+    }
+
+    async function fbSaveDetail(){
+      if(!FB_CURRENT) return;
+
+      fbSetInline("Mentés...", true, 0);
+      fbSetDetailMsg("", null);
+
+      const status = safeGet("fbDetailStatusSelect").value;
+      const admin_note = safeGet("fbDetailNote").value;
+
+      const res = await adminFetch("/api/admin/feedback/" + encodeURIComponent(FB_CURRENT.id), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, admin_note })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if(!res.ok){
+        fbSetInline("Hiba", false, 4500);
+        fbSetDetailMsg(data.error || "Hiba mentés közben.", false);
+        return;
+      }
+
+      fbSetInline("Mentve ✔", true, 6000);
+
+      await fbLoadList({ silent:true });
+
+      FB_CURRENT = data.item || FB_CURRENT;
+      safeGet("fbDetailStatusSelect").value = FB_CURRENT.status || "open";
+      safeGet("fbDetailNote").value = FB_CURRENT.admin_note || "";
+    }
+
+    function setupFeedback(){
+      const st = safeGet("fbFilterStatus");
+      const site = safeGet("fbFilterSite");
+      const per = safeGet("fbPageSize");
+
+      if (per) per.value = "25";
+      fbState.perPage = 25;
+
+      let __refreshTimer = null;
+
+      safeGet("fbRefresh").addEventListener("click", async () => {
+        const msgEl = safeGet("fbRefreshMsg");
+        await fbLoadList({ silent:false });
+        if (msgEl) {
+          msgEl.textContent = "Frissítve ✔";
+          msgEl.className = "mv-inline-msg ok";
+          if (__refreshTimer) clearTimeout(__refreshTimer);
+          __refreshTimer = setTimeout(() => {
+            msgEl.textContent = "";
+            msgEl.className = "mv-inline-msg";
+            __refreshTimer = null;
+          }, 2500);
+        }
+      });
+      safeGet("fbPrev").addEventListener("click", () => { fbState.page--; fbRenderList(); });
+      safeGet("fbNext").addEventListener("click", () => { fbState.page++; fbRenderList(); });
+
+      safeGet("fbBack").addEventListener("click", fbShowList);
+      safeGet("fbSave").addEventListener("click", fbSaveDetail);
+
+      if (st) st.addEventListener("change", async () => {
+        fbState.status = st.value || "";
+        fbState.page = 1;
+        fbShowList();
+        await fbLoadList({ silent:false });
+      });
+
+      let __deb = null;
+      if (site) site.addEventListener("input", () => {
+        fbState.site = site.value || "";
+        fbState.page = 1;
+        if (__deb) clearTimeout(__deb);
+        __deb = setTimeout(() => fbRenderList(), 120);
+      });
+
+      if (per) per.addEventListener("change", () => {
+        const v = Number(per.value || 25);
+        fbState.perPage = [25,50,100].includes(v) ? v : 25;
+        fbState.page = 1;
+        fbRenderList();
+      });
+
+      fbLoadList({ silent:false });
+    }
+
+    /* ===================== INIT ===================== */
+    async function initAdmin() {
+      initTabs();
+      hookListControls();
+
+      await loadPartners();
+      await loadCatalogs();
+      await loadStatsOverview();
+
+      setupCsvImport();
+      setupPartnerForm();
+
+      setupFeedback();
+
+      const saved = sessionStorage.getItem(TAB_KEY);
+      if (saved) setActiveTab(saved);
+    }
+
+    window.addEventListener("DOMContentLoaded", initAdmin);
+  </script>
+
+  <script>
+    (function () {
+      const KEY = "mv_admin_scroll_y";
+      const ref = (document.referrer || "").toLowerCase();
+
+      const cameFromSubpage =
+        ref.includes("/partner.html") ||
+        ref.includes("/stats.html");
+
+      document.addEventListener("click", (e) => {
+        const el = e.target && e.target.closest ? e.target.closest("a,button") : null;
+        if (!el) return;
+        sessionStorage.setItem(KEY, String(window.scrollY || 0));
+      }, true);
+
+      window.addEventListener("pagehide", () => {
+        sessionStorage.setItem(KEY, String(window.scrollY || 0));
+      });
+
+      try {
+        if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+      } catch (_) {}
+
+      if (!cameFromSubpage) {
+        sessionStorage.removeItem(KEY);
+        window.scrollTo(0, 0);
+        return;
+      }
+
+      const saved = sessionStorage.getItem(KEY);
+      const y = saved !== null ? parseInt(saved, 10) : NaN;
+      if (Number.isNaN(y)) return;
+
+      const body = document.body;
+
+      let locked = false;
+      let unlockTimer = null;
+      let observer = null;
+
+      function lockScroll() {
+        if (locked) return;
+        locked = true;
+
+        body.style.position = "fixed";
+        body.style.top = `-${y}px`;
+        body.style.left = "0";
+        body.style.right = "0";
+        body.style.width = "100%";
+        body.style.overflow = "hidden";
+      }
+
+      function unlockScroll() {
+        if (!locked) return;
+        locked = false;
+
+        body.style.position = "";
+        body.style.top = "";
+        body.style.left = "";
+        body.style.right = "";
+        body.style.width = "";
+        body.style.overflow = "";
+
+        window.scrollTo(0, y);
+
+        if (observer) {
+          observer.disconnect();
+          observer = null;
+        }
+        if (unlockTimer) {
+          clearTimeout(unlockTimer);
+          unlockTimer = null;
+        }
+      }
+
+      function armUnlockWhenStable() {
+        const target = document.querySelector(".mv-container") || body;
+
+        const schedule = () => {
+          if (unlockTimer) clearTimeout(unlockTimer);
+          unlockTimer = setTimeout(() => {
+            unlockScroll();
+          }, 220);
+        };
+
+        observer = new MutationObserver(() => {
+          schedule();
+        });
+
+        observer.observe(target, { childList: true, subtree: true, attributes: true });
+
+        schedule();
+
+        setTimeout(() => unlockScroll(), 2500);
+      }
+
+      function run() {
+        lockScroll();
+        armUnlockWhenStable();
+      }
+
+      window.addEventListener("pageshow", run, { once: true });
+    })();
+  </script>
+
+</body>
+</html>

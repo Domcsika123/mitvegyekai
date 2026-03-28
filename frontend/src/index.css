@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: #050509;
+  color: #e2e8f0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+#root { width: 100%; text-align: left; }
+
+/* ─── Glow Blobs ─────────────────────────────────────────────────── */
+@keyframes blob-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  25% { transform: translate(80px, -60px) scale(1.15) rotate(45deg); }
+  50% { transform: translate(-40px, 80px) scale(0.9) rotate(90deg); }
+  75% { transform: translate(60px, 40px) scale(1.1) rotate(135deg); }
+}
+@keyframes blob-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  33% { transform: translate(-100px, 60px) scale(1.2) rotate(-60deg); }
+  66% { transform: translate(70px, -80px) scale(0.85) rotate(60deg); }
+}
+@keyframes blob-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(50px, -100px) scale(1.25); }
+}
+@keyframes blob-drift-4 {
+  0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+  40% { transform: translate(-60px, -40px) scale(0.9) rotate(90deg); }
+  80% { transform: translate(40px, 60px) scale(1.1) rotate(-45deg); }
+}
+.blob-1 { animation: blob-drift-1 25s ease-in-out infinite; }
+.blob-2 { animation: blob-drift-2 30s ease-in-out infinite; }
+.blob-3 { animation: blob-drift-3 22s ease-in-out infinite; }
+.blob-4 { animation: blob-drift-4 28s ease-in-out infinite; }
+
+/* ─── Glass card ─────────────────────────────────────────────────── */
+.glass {
+  background: rgba(255,255,255,0.03);
+  border: 0.5px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.15);
+  box-shadow: 0 0 40px rgba(99,102,241,0.06);
+}
+
+/* ─── Gradient text ──────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #f1f5f9 0%, #818cf8 55%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.gradient-text-blue {
+  background: linear-gradient(135deg, #60a5fa 0%, #818cf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Shimmer button ─────────────────────────────────────────────── */
+.shimmer-btn {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: none;
+  animation: shimmer-sweep 3s ease-in-out infinite;
+}
+@keyframes shimmer-sweep {
+  0% { left: -100%; }
+  50%, 100% { left: 100%; }
+}
+
+/* ─── Video tilt & mask ──────────────────────────────────────────── */
+.video-tilt {
+  transform: perspective(1200px) rotateX(4deg) rotateY(-2deg);
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.video-tilt:hover {
+  transform: perspective(1200px) rotateX(1deg) rotateY(0deg);
+}
+.video-mask {
+  -webkit-mask-image: radial-gradient(ellipse 90% 85% at 50% 45%, black 60%, transparent 100%);
+  mask-image: radial-gradient(ellipse 90% 85% at 50% 45%, black 60%, transparent 100%);
+}
+
+/* ─── Floating animation ─────────────────────────────────────────── */
+@keyframes float-gentle {
+  0%, 100% { transform: perspective(1200px) rotateX(4deg) rotateY(-2deg) translateY(0); }
+  50% { transform: perspective(1200px) rotateX(4deg) rotateY(-2deg) translateY(-12px); }
+}
+.float-video {
+  animation: float-gentle 6s ease-in-out infinite;
+}
+
+/* ─── Gradient icon ──────────────────────────────────────────────── */
+.icon-gradient {
+  display: inline-flex;
+}
+.icon-gradient svg {
+  stroke: url(#icon-grad);
+}
+
+/* ─── Step connector ─────────────────────────────────────────────── */
+.step-connector {
+  position: relative;
+}
+.step-connector::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -24px;
+  width: 48px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(99,102,241,0.4), transparent);
+}
+.step-connector:last-child::after {
+  display: none;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #050509; }
+::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); border-radius: 3px; }

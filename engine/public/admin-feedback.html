@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mitvegyek.ai – Bejelentések</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    *{box-sizing:border-box;}
+    html,body{overflow-x:hidden;}
+    body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;padding:24px;background:#f3f4f6;}
+    .mv-container{max-width:1100px;margin:0 auto;overflow-x:hidden;}
+    .mv-card{background:white;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.05);padding:18px 20px;margin-bottom:18px;}
+    .mv-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;}
+    h1{margin:0 0 4px 0;}
+    .mv-small{font-size:13px;color:#4b5563;}
+    table{border-collapse:collapse;width:100%;font-size:13px;margin-top:10px;table-layout:fixed;}
+    th,td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:middle;word-break:break-word;}
+    th{font-weight:600;color:#374151;}
+
+    .mv-btn{
+      display:inline-flex;align-items:center;justify-content:center;
+      border-radius:999px;border:none;cursor:pointer;
+      padding:8px 14px;font-size:13px;white-space:nowrap;
+      -webkit-appearance:none; appearance:none;
+      background:transparent;
+    }
+    .mv-btn-secondary{background:#e5e7eb;color:#111827;}
+    .mv-btn-secondary:hover{background:#d1d5db;}
+    .mv-btn-primary{background:#2563eb;color:#fff;}
+    .mv-btn-primary:hover{background:#1d4ed8;}
+    .mv-inline{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+
+    .mv-status{margin-top:8px;font-size:13px;}
+    .ok{color:#166534;}
+    .err{color:#b91c1c;}
+
+    textarea{
+      width:100%;
+      max-width:100%;
+      border-radius:10px;border:1px solid #d1d5db;
+      padding:10px 10px;font-size:14px;min-height:90px;
+      resize:vertical;
+      overflow-x:hidden;
+    }
+    textarea:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 1px #2563eb33;}
+
+    code{
+      font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      font-size:12px;background:#111827;color:#e5e7eb;padding:3px 6px;border-radius:6px;
+      white-space:normal; word-break:break-all;
+    }
+
+    table th:last-child,
+    table td:last-child { text-align:center; }
+
+    .mv-cell-center{display:flex;justify-content:center;align-items:center;}
+    .mv-status-cell{display:flex;justify-content:flex-start;align-items:center;width:100%;}
+
+    table th:nth-child(5), table td:nth-child(5){ width:14%; }
+    table th:nth-child(6), table td:nth-child(6){ width:12%; }
+
+    .mv-pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      line-height:1;
+      padding:4px 12px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      min-height:24px;
+      box-sizing:border-box;
+      background:#f1f5f9;
+      color:#0f172a;
+      white-space:nowrap;
+    }
+    .pill-open{background:#fee2e2;color:#991b1b;}
+    .pill-in{background:#ffedd5;color:#9a3412;}
+    .pill-res{background:#dcfce7;color:#166534;}
+
+    /* ✅ Mentés melletti üzenet */
+    .mv-inline-msg{
+      font-size:13px;
+      font-weight:400;
+      padding-left:2px;
+    }
+    .mv-inline-msg.ok{ color:#166534; }
+    .mv-inline-msg.err{ color:#b91c1c; }
+
+    /* ✅ Pagination footer */
+    .mv-footerbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:12px;
+      padding-top:10px;
+      border-top:1px solid #e5e7eb;
+    }
+
+    /* ✅ felül ne legyen számláló */
+    #countHint{ display:none !important; }
+
+    /* ✅ Mobil lista (kártyák) */
+    #mobileList{ display:none; margin-top:12px; }
+    .mv-mcard{
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+      padding:12px;
+      background:#fff;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .mv-mrow{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+    .mv-mk{ font-size:12px; font-weight:700; color:#64748b; }
+    .mv-mv{ font-size:13px; font-weight:700; color:#0f172a; text-align:right; word-break:break-word; }
+    .mv-msubject{ font-size:14px; font-weight:900; color:#0f172a; line-height:1.25; }
+    .mv-mactions{ display:flex; justify-content:flex-end; margin-top:4px; }
+
+    /* ===== EMBED mód (admin.html iframe) ===== */
+    html.mv-embed body{ padding:0 !important; background:transparent !important; }
+    html.mv-embed .mv-container{ max-width:none !important; margin:0 !important; }
+    html.mv-embed .mv-topbar{ display:none !important; }
+    html.mv-embed .mv-card{
+      background:transparent !important;
+      box-shadow:none !important;
+      margin:0 !important;
+      padding:0 !important;
+      border-radius:0 !important;
+    }
+    html.mv-embed table{ margin-top:0 !important; }
+    html.mv-embed .mv-footerbar{ border-top:none !important; padding-top:0 !important; }
+
+    /* ✅ DETAIL VIEW: csak a részletek látszanak */
+    .mv-detail-only #listCard{ display:none !important; }
+    .mv-detail-only #pageHeader{ display:none !important; }
+
+    /* ✅ Mobilbarát: szűrősor full width, table helyett kártyák */
+    @media (max-width: 700px){
+      body{ padding:14px; }
+      .mv-card{ padding:14px; }
+      .mv-inline{ gap:8px; }
+      #filterSite{ width:100%; }
+      #filterStatus{ width:100%; }
+      #pageSize{ width:auto; }
+
+      table{ display:none; }
+      #mobileList{ display:flex; flex-direction:column; gap:10px; }
+
+      .mv-footerbar{ gap:10px; }
+      .mv-footerbar .mv-inline{
+        width:100%;
+        justify-content:space-between;
+      }
+      #resultHint{
+        width:100%;
+        text-align:left;
+      }
+      .mv-btn{ padding:10px 14px; }
+    }
+
+    /* ===============================
+       ✅ Megnyitás gomb = státusz pill
+       =============================== */
+    .mv-open-pill{
+      display:inline-flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      line-height:1 !important;
+      padding:4px 12px !important;
+      border-radius:999px !important;
+      font-size:12px !important;
+      font-weight:700 !important;
+      min-height:24px !important;
+      box-sizing:border-box !important;
+      background:#e5e7eb !important;
+      color:#111827 !important;
+      white-space:nowrap !important;
+      border:none !important;
+      cursor:pointer !important;
+      -webkit-appearance:none !important;
+      appearance:none !important;
+    }
+    .mv-open-pill:hover{ background:#d1d5db !important; }
+
+  </style>
+
+  <script>
+    (function () {
+      const token = localStorage.getItem("mv_admin_token");
+      if (!token) {
+        window.location.href = "/admin-login.html";
+        return;
+      }
+      window.MV_ADMIN_TOKEN = token;
+    })();
+
+    async function adminFetch(url, options) {
+      const token = window.MV_ADMIN_TOKEN;
+      const opts = options || {};
+      opts.headers = Object.assign({}, opts.headers || {}, { "x-admin-token": token });
+
+      const res = await fetch(url, opts);
+
+      if (res.status === 401) {
+        localStorage.removeItem("mv_admin_token");
+        window.location.href = "/admin-login.html";
+      }
+      return res;
+    }
+
+    function escapeHtml(s) {
+      return String(s || "")
+        .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    }
+
+    function fmt(v){
+      if(!v) return "-";
+      try{ const d=new Date(v); if(isNaN(d.getTime())) return "-"; return d.toLocaleString("hu-HU"); }catch{ return "-"; }
+    }
+
+    function pill(status){
+      if(status==="open") return `<span class="mv-pill pill-open">open</span>`;
+      if(status==="in_progress") return `<span class="mv-pill pill-in">in_progress</span>`;
+      if(status==="resolved") return `<span class="mv-pill pill-res">resolved</span>`;
+      return `<span class="mv-pill">${escapeHtml(status)}</span>`;
+    }
+
+    (function () {
+      const isEmbed = new URLSearchParams(location.search).get("embed") === "1";
+      if (isEmbed) document.documentElement.classList.add("mv-embed");
+    })();
+  </script>
+</head>
+
+<body>
+  <div class="mv-container">
+    <div class="mv-topbar" id="pageHeader">
+      <div>
+        <h1>Bejelentések</h1>
+        <div class="mv-small">Partner visszajelzések / hibák kezelése</div>
+      </div>
+      <div class="mv-inline">
+        <button class="mv-btn mv-btn-secondary" onclick="window.location.href='/admin.html'">← Vissza</button>
+        <button class="mv-btn mv-btn-secondary" id="btnRefresh">Frissítés</button>
+      </div>
+    </div>
+
+    <div class="mv-card" id="listCard">
+      <div class="mv-inline">
+        <label class="mv-small">Szűrés:</label>
+        <select id="filterStatus" style="border-radius:999px;border:1px solid #d1d5db;padding:8px 12px;">
+          <option value="">összes</option>
+          <option value="open">open</option>
+          <option value="in_progress">in_progress</option>
+          <option value="resolved">resolved</option>
+        </select>
+
+        <input id="filterSite" placeholder="site_key szűrő" style="border-radius:999px;border:1px solid #d1d5db;padding:8px 12px;" />
+
+        <label class="mv-small" style="margin-left:6px;">Mutass:</label>
+        <select id="pageSize" style="border-radius:999px;border:1px solid #d1d5db;padding:8px 12px;">
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+
+        <span class="mv-small" id="countHint"></span>
+      </div>
+
+      <div class="mv-status" id="status"></div>
+
+      <!-- Desktop: table -->
+      <table>
+        <thead>
+          <tr>
+            <th style="width:18%;">Dátum</th>
+            <th style="width:12%;">site_key</th>
+            <th style="width:12%;">Típus</th>
+            <th style="width:30%;">Tárgy</th>
+            <th style="width:14%;">Státusz</th>
+            <th>Művelet</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+
+      <!-- Mobile: cards -->
+      <div id="mobileList"></div>
+
+      <!-- Footer pagination -->
+      <div class="mv-footerbar" id="footerBar">
+        <div class="mv-inline">
+          <button class="mv-btn mv-btn-secondary" id="btnPrev" type="button">Előző</button>
+          <button class="mv-btn mv-btn-secondary" id="btnNext" type="button">Következő</button>
+        </div>
+        <div class="mv-small" id="resultHint">Találatok: -</div>
+      </div>
+    </div>
+
+    <div class="mv-card" id="detailCard" style="display:none;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <div>
+          <h2 style="margin:0 0 6px 0;">Részletek</h2>
+          <div class="mv-small" id="detailMeta"></div>
+        </div>
+        <button class="mv-btn mv-btn-secondary" id="btnBack">← Vissza</button>
+      </div>
+
+      <div style="margin-top:10px;">
+        <div><strong>Tárgy:</strong> <span id="detailSubject"></span></div>
+        <div style="margin-top:6px;"><strong>Üzenet:</strong></div>
+        <div id="detailMessage" style="white-space:pre-wrap;margin-top:6px;"></div>
+        <div style="margin-top:8px;"><strong>Oldal:</strong> <span id="detailUrl"></span></div>
+      </div>
+
+      <div class="mv-inline" style="margin-top:12px;">
+        <select id="detailStatus" style="border-radius:999px;border:1px solid #d1d5db;padding:8px 12px;">
+          <option value="open">open</option>
+          <option value="in_progress">in_progress</option>
+          <option value="resolved">resolved</option>
+        </select>
+
+        <button class="mv-btn mv-btn-primary" id="btnSave">Mentés</button>
+        <span id="detailInlineMsg" class="mv-inline-msg"></span>
+      </div>
+
+      <div style="margin-top:10px;">
+        <div class="mv-small">Admin megjegyzés (belső):</div>
+        <textarea id="detailNote" placeholder="pl. reprodukálva, javítás készül..."></textarea>
+      </div>
+
+      <div class="mv-status" id="detailStatusMsg"></div>
+    </div>
+  </div>
+
+  <script>
+    let currentItem = null;
+
+    let ALL_ITEMS = [];
+    let __siteDebounce = null;
+    let __inlineTimer = null;
+
+    // pagination
+    let MV_PAGE_SIZE = 25;
+    let MV_PAGE = 1;
+
+    // auto refresh
+    const AUTO_REFRESH_MS = 20000;
+    let __autoTimer = null;
+    let __inFlight = false;
+
+    function inDetailMode(){
+      return document.body.classList.contains("mv-detail-only");
+    }
+
+    function startAutoRefresh(){
+      stopAutoRefresh();
+      __autoTimer = setInterval(async () => {
+        if (document.hidden) return;
+        if (__inFlight) return;
+        await loadList({ silent: true });
+      }, AUTO_REFRESH_MS);
+    }
+
+    function stopAutoRefresh(){
+      if (__autoTimer){ clearInterval(__autoTimer); __autoTimer = null; }
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stopAutoRefresh();
+      else startAutoRefresh();
+    });
+
+    function setStatus(text, ok){
+      const el = document.getElementById("status");
+      el.textContent = text || "";
+      el.className = "mv-status " + (ok===true ? "ok" : ok===false ? "err" : "");
+    }
+
+    function setInlineMsg(text, ok, keepMs){
+      const el = document.getElementById("detailInlineMsg");
+      if (!el) return;
+
+      if (__inlineTimer) { clearTimeout(__inlineTimer); __inlineTimer = null; }
+
+      el.textContent = text || "";
+      el.className = "mv-inline-msg " + (ok===true ? "ok" : ok===false ? "err" : "");
+
+      const ms = Number(keepMs || 0);
+      if (text && ms > 0){
+        __inlineTimer = setTimeout(() => {
+          el.textContent = "";
+          el.className = "mv-inline-msg";
+          __inlineTimer = null;
+        }, ms);
+      }
+    }
+
+    function setDetailMsg(text, ok){
+      const el = document.getElementById("detailStatusMsg");
+      el.textContent = text || "";
+      el.className = "mv-status " + (ok===true ? "ok" : ok===false ? "err" : "");
+    }
+
+    function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+    function updateFooter(total, from, to, page, pages){
+      const hint = document.getElementById("resultHint");
+      if(hint){
+        if(total<=0) hint.textContent = "Találatok: 0";
+        else hint.textContent = `Találatok: ${total} · ${from}-${to} · ${page}/${pages} oldal`;
+      }
+
+      const prev = document.getElementById("btnPrev");
+      const next = document.getElementById("btnNext");
+      if(prev) prev.disabled = page <= 1;
+      if(next) next.disabled = page >= pages;
+    }
+
+    function computeFiltered(){
+      const sk = (document.getElementById("filterSite").value || "").trim().toLowerCase();
+      const filtered = !sk
+        ? ALL_ITEMS.slice()
+        : ALL_ITEMS.filter(it => String(it.site_key || "").toLowerCase().includes(sk));
+      return filtered;
+    }
+
+    function renderMobileCards(pageItems){
+      const list = document.getElementById("mobileList");
+      if(!list) return;
+      list.innerHTML = "";
+
+      if(!pageItems || pageItems.length===0){
+        list.innerHTML = `<div class="mv-small">Nincs találat.</div>`;
+        return;
+      }
+
+      pageItems.forEach(it=>{
+        const card = document.createElement("div");
+        card.className = "mv-mcard";
+        card.innerHTML = `
+          <div class="mv-msubject">${escapeHtml(it.subject || "-")}</div>
+
+          <div class="mv-mrow">
+            <div class="mv-mk">Dátum</div>
+            <div class="mv-mv">${escapeHtml(fmt(it.created_at))}</div>
+          </div>
+
+          <div class="mv-mrow">
+            <div class="mv-mk">site_key</div>
+            <div class="mv-mv"><code>${escapeHtml(it.site_key || "")}</code></div>
+          </div>
+
+          <div class="mv-mrow">
+            <div class="mv-mk">Típus</div>
+            <div class="mv-mv">${escapeHtml(it.type || "-")}</div>
+          </div>
+
+          <div class="mv-mrow">
+            <div class="mv-mk">Státusz</div>
+            <div class="mv-mv">${pill(it.status || "")}</div>
+          </div>
+
+          <div class="mv-mactions">
+            <button class="mv-open-pill" type="button">Megnyitás</button>
+          </div>
+        `;
+        card.querySelector("button").addEventListener("click", ()=> openDetail(it));
+        list.appendChild(card);
+      });
+    }
+
+    function applyClientFilter(){
+      const tbody = document.getElementById("tbody");
+      if(tbody) tbody.innerHTML = "";
+
+      const filtered = computeFiltered();
+      const total = filtered.length;
+
+      const pages = Math.max(1, Math.ceil(total / MV_PAGE_SIZE));
+      MV_PAGE = clamp(MV_PAGE, 1, pages);
+
+      const startIdx = (MV_PAGE - 1) * MV_PAGE_SIZE;
+      const endIdx = Math.min(startIdx + MV_PAGE_SIZE, total);
+
+      const pageItems = filtered.slice(startIdx, endIdx);
+
+      const from = total ? (startIdx + 1) : 0;
+      const to = total ? endIdx : 0;
+
+      updateFooter(total, from, to, MV_PAGE, pages);
+
+      // desktop table render
+      if(tbody){
+        if(pageItems.length===0){
+          tbody.innerHTML = "<tr><td colspan='6'>Nincs találat.</td></tr>";
+        } else {
+          pageItems.forEach(it=>{
+            const tr=document.createElement("tr");
+            tr.innerHTML = `
+              <td>${escapeHtml(fmt(it.created_at))}</td>
+              <td><code>${escapeHtml(it.site_key)}</code></td>
+              <td>${escapeHtml(it.type)}</td>
+              <td>${escapeHtml(it.subject)}</td>
+              <td><div class="mv-status-cell">${pill(it.status)}</div></td>
+              <td><div class="mv-cell-center"><button class="mv-open-pill" type="button">Megnyitás</button></div></td>
+            `;
+            tr.querySelector("button").addEventListener("click", ()=> openDetail(it));
+            tbody.appendChild(tr);
+          });
+        }
+      }
+
+      // mobile cards render
+      renderMobileCards(pageItems);
+    }
+
+    async function loadList(opts){
+      const silent = !!(opts && opts.silent);
+
+      if (__inFlight) return;
+      __inFlight = true;
+
+      try{
+        if (!silent) setStatus("Betöltés...", true);
+
+        const st = (document.getElementById("filterStatus").value || "").trim();
+        const qs = new URLSearchParams();
+        if(st) qs.set("status", st);
+
+        const res = await adminFetch("/api/admin/feedback" + (qs.toString() ? "?" + qs.toString() : ""));
+        const data = await res.json().catch(()=> ({}));
+
+        if(!res.ok){
+          if (!silent) setStatus(data.error || "Hiba a bejelentések lekérésénél.", false);
+          return;
+        }
+
+        ALL_ITEMS = data.items || [];
+
+        if (!silent) setStatus("", null);
+
+        if (!inDetailMode()){
+          applyClientFilter();
+        }
+      } finally {
+        __inFlight = false;
+      }
+    }
+
+    function enterDetailMode(){
+      document.body.classList.add("mv-detail-only");
+    }
+
+    function exitDetailMode(){
+      document.body.classList.remove("mv-detail-only");
+    }
+
+    function fillDetail(it, opts){
+      const preserveMsgs = !!(opts && opts.preserveMsgs);
+
+      document.getElementById("detailMeta").innerHTML =
+        `#<code>${escapeHtml(it.id)}</code> • site_key: <code>${escapeHtml(it.site_key)}</code> • ${escapeHtml(fmt(it.created_at))}`;
+
+      document.getElementById("detailSubject").textContent = it.subject || "";
+      document.getElementById("detailMessage").textContent = it.message || "";
+      document.getElementById("detailUrl").textContent = it.page_url || "-";
+      document.getElementById("detailStatus").value = it.status || "open";
+      document.getElementById("detailNote").value = it.admin_note || "";
+
+      if (!preserveMsgs){
+        setInlineMsg("", null, 0);
+        setDetailMsg("", null);
+      }
+    }
+
+    function openDetail(it){
+      currentItem = it;
+      document.getElementById("detailCard").style.display = "block";
+      fillDetail(it, { preserveMsgs:false });
+      enterDetailMode();
+    }
+
+    async function saveDetail(){
+      if(!currentItem) return;
+
+      setInlineMsg("Mentés...", true, 0);
+      setDetailMsg("", null);
+
+      const status = document.getElementById("detailStatus").value;
+      const admin_note = document.getElementById("detailNote").value;
+
+      const res = await adminFetch("/api/admin/feedback/" + encodeURIComponent(currentItem.id), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, admin_note })
+      });
+
+      const data = await res.json().catch(()=> ({}));
+      if(!res.ok){
+        setInlineMsg("Hiba", false, 4500);
+        setDetailMsg(data.error || "Hiba mentés közben.", false);
+        return;
+      }
+
+      setInlineMsg("Mentve ✔", true, 6000);
+
+      await loadList({ silent: true });
+
+      currentItem = data.item || currentItem;
+      fillDetail(currentItem, { preserveMsgs:true });
+    }
+
+    function backToList(){
+      currentItem = null;
+      document.getElementById("detailCard").style.display = "none";
+      setInlineMsg("", null, 0);
+      setDetailMsg("", null);
+      exitDetailMode();
+      applyClientFilter();
+    }
+
+    document.getElementById("btnRefresh").addEventListener("click", async ()=>{
+      await loadList({ silent: false });
+      if (!inDetailMode()) applyClientFilter();
+    });
+
+    document.getElementById("btnSave").addEventListener("click", saveDetail);
+    document.getElementById("btnBack").addEventListener("click", backToList);
+
+    document.getElementById("filterStatus").addEventListener("change", async ()=> {
+      if (inDetailMode()) backToList();
+      MV_PAGE = 1;
+      await loadList({ silent:false });
+      applyClientFilter();
+    });
+
+    document.getElementById("filterSite").addEventListener("input", ()=>{
+      if(__siteDebounce) clearTimeout(__siteDebounce);
+      __siteDebounce = setTimeout(()=>{
+        MV_PAGE = 1;
+        applyClientFilter();
+      }, 120);
+    });
+
+    document.getElementById("pageSize").addEventListener("change", ()=>{
+      const v = Number(document.getElementById("pageSize").value || 25);
+      MV_PAGE_SIZE = [25,50,100].includes(v) ? v : 25;
+      MV_PAGE = 1;
+      applyClientFilter();
+    });
+
+    document.getElementById("btnPrev").addEventListener("click", ()=>{
+      MV_PAGE = Math.max(1, MV_PAGE - 1);
+      applyClientFilter();
+    });
+    document.getElementById("btnNext").addEventListener("click", ()=>{
+      const total = computeFiltered().length;
+      const pages = Math.max(1, Math.ceil(total / MV_PAGE_SIZE));
+      MV_PAGE = Math.min(pages, MV_PAGE + 1);
+      applyClientFilter();
+    });
+
+    window.addEventListener("DOMContentLoaded", async ()=>{
+      document.getElementById("pageSize").value = "25";
+      MV_PAGE_SIZE = 25;
+      MV_PAGE = 1;
+
+      await loadList({ silent:false });
+      exitDetailMode();
+      startAutoRefresh();
+    });
+
+    window.addEventListener("beforeunload", stopAutoRefresh);
+  </script>
+</body>
+</html>
